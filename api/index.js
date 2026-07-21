@@ -17,9 +17,9 @@ let boardData = {
   ]
 };
 
-app.get('/api/board', (req, res) => res.json(boardData));
+app.get(['/api/board', '/board', '/'], (req, res) => res.json(boardData));
 
-app.post('/api/tasks', (req, res) => {
+app.post(['/api/tasks', '/tasks'], (req, res) => {
   const task = req.body;
   if (task && task.id) {
     const idx = boardData.tasks.findIndex((t) => t.id === task.id);
@@ -29,7 +29,7 @@ app.post('/api/tasks', (req, res) => {
   res.json({ success: true, task });
 });
 
-app.patch('/api/tasks/:id/stage', (req, res) => {
+app.patch(['/api/tasks/:id/stage', '/tasks/:id/stage'], (req, res) => {
   const { id } = req.params;
   const { stage } = req.body;
   const task = boardData.tasks.find((t) => t.id === id);
@@ -37,18 +37,18 @@ app.patch('/api/tasks/:id/stage', (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete(['/api/tasks/:id', '/tasks/:id'], (req, res) => {
   boardData.tasks = boardData.tasks.filter((t) => t.id !== req.params.id);
   res.json({ success: true });
 });
 
-app.post('/api/members', (req, res) => {
+app.post(['/api/members', '/members'], (req, res) => {
   const { name } = req.body;
   if (name && !boardData.members.includes(name)) boardData.members.push(name);
   res.json({ success: true });
 });
 
-app.delete('/api/members/:name', (req, res) => {
+app.delete(['/api/members/:name', '/members/:name'], (req, res) => {
   const name = decodeURIComponent(req.params.name);
   boardData.members = boardData.members.filter((m) => m !== name);
   boardData.tasks.forEach((t) => {
@@ -57,7 +57,7 @@ app.delete('/api/members/:name', (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/clear', (req, res) => {
+app.post(['/api/clear', '/clear'], (req, res) => {
   boardData.tasks = [];
   res.json({ success: true });
 });

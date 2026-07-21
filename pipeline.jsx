@@ -38,24 +38,43 @@ const K_TASKS = "pipeline:tasks:v1";
 const K_MEMBERS = "pipeline:members:v1";
 const K_INIT = "pipeline:initialized:v1";
 
-const hasStore =
-  typeof window !== "undefined" &&
-  window.storage &&
-  typeof window.storage.get === "function";
+function getStore() {
+  if (typeof window !== "undefined" && window.storage && typeof window.storage.get === "function") {
+    return {
+      get: async (k) => {
+        const res = await window.storage.get(k, true);
+        return res && res.value != null ? res.value : null;
+      },
+      set: async (k, v) => {
+        await window.storage.set(k, v, true);
+      }
+    };
+  }
+  if (typeof window !== "undefined" && window.localStorage) {
+    return {
+      get: async (k) => window.localStorage.getItem(k),
+      set: async (k, v) => window.localStorage.setItem(k, v)
+    };
+  }
+  return null;
+}
 
 async function loadKey(key, fallback) {
-  if (!hasStore) return fallback;
+  const store = getStore();
+  if (!store) return fallback;
   try {
-    const res = await window.storage.get(key, true);
-    return res && res.value != null ? JSON.parse(res.value) : fallback;
+    const val = await store.get(key);
+    return val != null ? JSON.parse(val) : fallback;
   } catch {
     return fallback;
   }
 }
+
 async function saveKey(key, value) {
-  if (!hasStore) return;
+  const store = getStore();
+  if (!store) return;
   try {
-    await window.storage.set(key, JSON.stringify(value), true);
+    await store.set(key, JSON.stringify(value));
   } catch (e) {
     console.error("save failed", key, e);
   }
@@ -477,13 +496,13 @@ export default function App() {
 
       {apiConnected ? (
         <div className="notice" style={{ background: "#EEF2FF", color: "#3730A3", borderColor: "#C7D2FE" }}>
-          ⚡ Backend Connected — Saved to SQLite database (`pipeline.sqlite`)
+          ⚡ Live Server Connected — Data synced with backend API
         </div>
-      ) : !hasStore ? (
-        <div className="notice">
-          Preview mode — start backend with <code>npm run dev</code> for full local database persistence.
+      ) : (
+        <div className="notice" style={{ background: "#F0FDF4", color: "#166534", borderColor: "#BBF7D0" }}>
+          💾 Browser Storage Active — Cards saved locally in your browser
         </div>
-      ) : null}
+      )}
 
       {/* ---------- board ---------- */}
       {loading ? (
