@@ -32,11 +32,9 @@ Open **`http://localhost:5173`** in your browser.
 
 Your local Git repository is initialized and committed. Follow these steps to push to GitHub:
 
-1. Go to [github.com/new](https://github.com/new) and create a repository named **`pipeline-kanban`**.
-2. Run the following commands in your terminal:
+1. Go to [github.com/new](https://github.com/new) and create a new repository named **`pipeline-kanban`** under account **`mafazsiddi`**.
+2. Run the following command in your terminal to push:
    ```bash
-   git branch -M main
-   git remote add origin https://github.com/YOUR_GITHUB_USERNAME/pipeline-kanban.git
    git push -u origin main
    ```
 
