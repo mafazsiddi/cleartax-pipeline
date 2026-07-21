@@ -32,10 +32,10 @@ Open **`http://localhost:5173`** in your browser.
 
 Your local Git repository is initialized and committed. Follow these steps to push to GitHub:
 
-1. Go to [github.com/new](https://github.com/new) and create a new repository named **`pipeline-kanban`** under account **`mafazsiddi`**.
-2. Run the following command in your terminal to push:
+1. Your repository is live at: **[https://github.com/mafazsiddi/cleartax-pipeline](https://github.com/mafazsiddi/cleartax-pipeline)**
+2. To push future changes from your computer, run:
    ```bash
-   git push -u origin main
+   git push origin main
    ```
 
 ---
