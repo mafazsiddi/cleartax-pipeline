@@ -89,7 +89,8 @@ if (usePostgres) {
 // Memory fallback store (used if process.env.DATABASE_URL is not set)
 let memoryBoardData = {
   members: [],
-  tasks: []
+  tasks: [],
+  invites: {}
 };
 
 // Auto initialize tables if using Postgres
@@ -128,6 +129,13 @@ async function initPg() {
         token VARCHAR(255) PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
         expires_at BIGINT NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_invites (
+        email VARCHAR(255) PRIMARY KEY,
+        token VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL
       )
     `);
 
@@ -203,36 +211,105 @@ const authenticateUser = async (req, res, next) => {
 app.use(authenticateUser);
 
 // Custom Auth Endpoints
-app.post('/api/auth/authorize-email', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-
-  const trimmed = email.trim().toLowerCase();
-  const domain = trimmed.split('@')[1];
-  const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
-  if (!domain || !allowed.includes(domain)) {
-    return res.status(403).json({ error: 'Please enter a valid email address' });
+app.get('/api/auth/invites', async (req, res) => {
+  try {
+    if (usePostgres) {
+      await initPg();
+      const dbRes = await pool.query('SELECT name, email, token FROM user_invites');
+      return res.json(dbRes.rows);
+    } else {
+      const list = Object.entries(memoryBoardData.invites || {}).map(([email, info]) => ({
+        email,
+        token: info.token,
+        name: info.name
+      }));
+      return res.json(list);
+    }
+  } catch (err) {
+    console.error('Failed to get invites:', err);
+    return res.status(500).json({ error: 'Failed to retrieve invites' });
   }
+});
+
+app.post('/api/auth/invite', async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required' });
+  }
+  const trimmedName = name.trim();
+  const trimmedEmail = email.trim().toLowerCase();
 
   try {
+    const token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+
+    if (usePostgres) {
+      await initPg();
+      await pool.query('INSERT INTO members (name) VALUES ($1) ON CONFLICT DO NOTHING', [trimmedName]);
+      await pool.query(
+        `INSERT INTO user_invites (email, token, name) VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO UPDATE SET token = $2, name = $3`,
+        [trimmedEmail, token, trimmedName]
+      );
+    } else {
+      if (!memoryBoardData.members.includes(trimmedName)) {
+        memoryBoardData.members.push(trimmedName);
+      }
+      memoryBoardData.invites = memoryBoardData.invites || {};
+      memoryBoardData.invites[trimmedEmail] = { token, name: trimmedName };
+    }
+
+    return res.json({ success: true, email: trimmedEmail, token, name: trimmedName });
+  } catch (err) {
+    console.error('Failed to create/update invite:', err);
+    return res.status(500).json({ error: 'Failed to generate invite' });
+  }
+});
+
+app.post('/api/auth/verify-token', async (req, res) => {
+  const { email, token } = req.body;
+  if (!email || !token) {
+    return res.status(400).json({ error: 'Email and token are required' });
+  }
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedToken = token.trim();
+
+  try {
+    let record = null;
+    if (usePostgres) {
+      await initPg();
+      const dbRes = await pool.query(
+        'SELECT * FROM user_invites WHERE email = $1 AND token = $2',
+        [trimmedEmail, trimmedToken]
+      );
+      record = dbRes.rows[0];
+    } else {
+      const info = (memoryBoardData.invites || {})[trimmedEmail];
+      if (info && info.token === trimmedToken) {
+        record = { email: trimmedEmail, token: trimmedToken, name: info.name };
+      }
+    }
+
+    if (!record) {
+      return res.status(401).json({ error: 'Invalid or expired magic link' });
+    }
+
     const sessionToken = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
     const sessionExpiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
     if (usePostgres) {
-      await initPg();
       await pool.query(
         `INSERT INTO user_sessions (token, email, expires_at) VALUES ($1, $2, $3)`,
-        [sessionToken, trimmed, sessionExpiresAt]
+        [sessionToken, trimmedEmail, sessionExpiresAt]
       );
     } else {
       memoryBoardData.sessions = memoryBoardData.sessions || {};
-      memoryBoardData.sessions[sessionToken] = { email: trimmed, expiresAt: sessionExpiresAt };
+      memoryBoardData.sessions[sessionToken] = { email: trimmedEmail, expiresAt: sessionExpiresAt };
     }
 
-    return res.json({ token: sessionToken, email: trimmed });
+    return res.json({ token: sessionToken, email: trimmedEmail, name: record.name });
   } catch (err) {
-    console.error('Authorize email error:', err);
-    return res.status(500).json({ error: 'Server error authorizing email' });
+    console.error('Verify token error:', err);
+    return res.status(500).json({ error: 'Server error verifying token' });
   }
 });
 
