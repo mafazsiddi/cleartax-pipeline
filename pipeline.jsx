@@ -157,11 +157,8 @@ function buildSeed() {
 /* =================================================================== */
 function LoginScreen({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
   const validateEmailDomain = (emailStr) => {
     const domain = emailStr.trim().split("@")[1];
@@ -170,10 +167,9 @@ function LoginScreen({ onLoginSuccess }) {
     return allowed.includes(domain.toLowerCase());
   };
 
-  const handleSendOtp = async (e) => {
+  const handleAuthorize = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccessMsg("");
     const trimmed = email.trim();
     if (!trimmed) return setError("Please enter your email address.");
     if (!validateEmailDomain(trimmed)) {
@@ -182,47 +178,20 @@ function LoginScreen({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/send-otp", {
+      const res = await fetch("/api/auth/authorize-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to send code.");
-      } else {
-        setCodeSent(true);
-        setSuccessMsg("A 6-digit verification code has been sent to your email!");
-      }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setError("");
-    const trimmedCode = code.trim();
-    if (!trimmedCode) return setError("Please enter the 6-digit code.");
-
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), otp: trimmedCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to verify code.");
+        setError(data.error || "Failed to authorize email.");
       } else {
         localStorage.setItem("pipeline_session", JSON.stringify(data));
         onLoginSuccess(data);
       }
     } catch (err) {
-      setError("Failed to verify code. Please try again.");
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -299,150 +268,58 @@ function LoginScreen({ onLoginSuccess }) {
           </div>
         )}
 
-        {successMsg && (
-          <div style={{
-            background: "rgba(16, 185, 129, 0.1)",
-            border: "1px solid rgba(16, 185, 129, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 16px",
-            color: "#A7F3D0",
-            fontSize: "13px",
-            textAlign: "left",
-            marginBottom: "20px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "8px",
-          }}>
-            <Check size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
-            <span>{successMsg}</span>
+        <form onSubmit={handleAuthorize}>
+          <div style={{ textAlign: "left", marginBottom: "20px" }}>
+            <label style={{
+              display: "block",
+              fontSize: "12px",
+              fontWeight: "600",
+              color: "rgba(255, 255, 255, 0.8)",
+              marginBottom: "8px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+              Work Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="name@cleartax.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                background: "rgba(255, 255, 255, 0.05)",
+                color: "white",
+                fontSize: "15px",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
           </div>
-        )}
-
-        {!codeSent ? (
-          <form onSubmit={handleSendOtp}>
-            <div style={{ textAlign: "left", marginBottom: "20px" }}>
-              <label style={{
-                display: "block",
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "rgba(255, 255, 255, 0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                Work Email Address
-              </label>
-              <input
-                type="email"
-                placeholder="name@cleartax.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  color: "white",
-                  fontSize: "15px",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "none",
-                background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
-                color: "white",
-                fontSize: "15px",
-                fontWeight: "600",
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "all 0.2s ease",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Sending..." : "Send Verification Code"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp}>
-            <div style={{ textAlign: "left", marginBottom: "20px" }}>
-              <label style={{
-                display: "block",
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "rgba(255, 255, 255, 0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                6-Digit Code
-              </label>
-              <input
-                type="text"
-                placeholder="123456"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  color: "white",
-                  fontSize: "18px",
-                  textAlign: "center",
-                  letterSpacing: "8px",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "none",
-                background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
-                color: "white",
-                fontSize: "15px",
-                fontWeight: "600",
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "all 0.2s ease",
-                opacity: loading ? 0.7 : 1,
-                marginBottom: "16px",
-              }}
-            >
-              {loading ? "Verifying..." : "Verify & Sign In"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setCodeSent(false)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "rgba(255, 255, 255, 0.6)",
-                fontSize: "13px",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Change email
-            </button>
-          </form>
-        )}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              padding: "14px",
+              borderRadius: "12px",
+              border: "none",
+              background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "600",
+              cursor: loading ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Verifying..." : "Access Board"}
+          </button>
+        </form>
       </div>
     </div>
   );
