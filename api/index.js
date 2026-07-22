@@ -231,7 +231,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
       memoryBoardData.otps[trimmed] = { otp, expiresAt };
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY || 're_jMdBxx4F_BmrEghhjChBb8QP26ZybA6Eu';
+    let resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey || !resendApiKey.startsWith('re_')) {
+      resendApiKey = 're_jMdBxx4F_BmrEghhjChBb8QP26ZybA6Eu';
+    }
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
