@@ -258,7 +258,14 @@ app.post('/api/auth/send-otp', async (req, res) => {
     if (!resendRes.ok) {
       const errorText = await resendRes.text();
       console.error('Resend API error:', errorText);
-      return res.status(500).json({ error: 'Failed to send verification email via Resend' });
+      try {
+        const errorJson = JSON.parse(errorText);
+        return res.status(500).json({ 
+          error: `Failed to send email: ${errorJson.message || errorJson.error || errorText}` 
+        });
+      } catch (e) {
+        return res.status(500).json({ error: `Failed to send email: ${errorText}` });
+      }
     }
 
     return res.json({ success: true });
