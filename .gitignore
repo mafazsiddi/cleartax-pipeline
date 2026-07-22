@@ -4,3 +4,6 @@ dist
 *.log
 *.sqlite
 .DS_Store
+
+.vercel
+.env*
