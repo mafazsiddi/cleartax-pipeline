@@ -478,6 +478,46 @@ export default function App() {
     };
   }, [authLoading, session]);
 
+  /* ---- polling real-time updates ---- */
+  useEffect(() => {
+    if (authLoading || !session || !apiConnected) return;
+
+    const interval = setInterval(async () => {
+      // Don't poll if user is actively interacting with a modal or dragging a card
+      if (modalOpen || teamOpen || dragId) return;
+
+      try {
+        const headers = {};
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
+        }
+        const res = await fetch("/api/board", { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.tasks)) {
+            setTasks(prev => {
+              if (JSON.stringify(prev) !== JSON.stringify(data.tasks)) {
+                return data.tasks;
+              }
+              return prev;
+            });
+            setMembers(prev => {
+              const nextM = Array.isArray(data.members) ? data.members : SEED_MEMBERS;
+              if (JSON.stringify(prev) !== JSON.stringify(nextM)) {
+                return nextM;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Real-time poll failed:", e);
+      }
+    }, 4000); // Check every 4 seconds
+
+    return () => clearInterval(interval);
+  }, [authLoading, session, apiConnected, modalOpen, teamOpen, dragId]);
+
   /* ---- persistence-wrapped setters ---- */
   const persistTasks = (next) => {
     setTasks(next);
