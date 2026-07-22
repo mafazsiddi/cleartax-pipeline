@@ -59,9 +59,23 @@ const connectionString =
 const usePostgres = !!connectionString;
 let pool = null;
 
+function removeSslmode(urlString) {
+  if (!urlString) return urlString;
+  try {
+    const normalized = urlString.startsWith('postgresql://') ? urlString.replace('postgresql://', 'http://') : urlString.replace('postgres://', 'http://');
+    const parsed = new URL(normalized);
+    parsed.searchParams.delete('sslmode');
+    parsed.searchParams.delete('ssl');
+    const protocol = urlString.startsWith('postgresql://') ? 'postgresql' : 'postgres';
+    return `${protocol}://${parsed.username}:${parsed.password}@${parsed.host}${parsed.pathname}${parsed.search}`;
+  } catch (e) {
+    return urlString;
+  }
+}
+
 if (usePostgres) {
   pool = new pg.Pool({
-    connectionString: connectionString,
+    connectionString: removeSslmode(connectionString),
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 2000,
     max: 5,
