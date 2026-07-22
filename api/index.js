@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 app.use(cors());
@@ -152,6 +153,48 @@ function maskConnectionString(url) {
     return `invalid-format: ${url.slice(0, 30)}...`;
   }
 }
+
+let supabaseAdmin = null;
+const supabaseUrl = process.env.NEXT_PUBLIC_cleartaxpipeline_SUPABASE_URL;
+const supabaseAnonKey = process.env.cleartaxpipeline_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_cleartaxpipeline_SUPABASE_PUBLISHABLE_KEY;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey);
+}
+
+const authenticateUser = async (req, res, next) => {
+  if (!supabaseAdmin) {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Missing token' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid token', details: error?.message });
+    }
+
+    const email = user.email || '';
+    const domain = email.split('@')[1];
+    const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
+    if (!domain || !allowed.includes(domain.toLowerCase())) {
+      return res.status(403).json({ error: 'Forbidden: Access restricted to @clear.in or @cleartax.com domains.' });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('Auth middleware error:', err);
+    return res.status(500).json({ error: 'Internal Auth Error' });
+  }
+};
+
+app.use(authenticateUser);
 
 // API Routes
 app.get(['/api/board', '/board', '/'], async (req, res) => {
