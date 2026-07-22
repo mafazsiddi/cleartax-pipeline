@@ -173,7 +173,7 @@ function LoginScreen({ onLoginSuccess }) {
     const trimmed = email.trim();
     if (!trimmed) return setError("Please enter your email address.");
     if (!validateEmailDomain(trimmed)) {
-      return setError("Access restricted. Please use a @clear.in or @cleartax.com email.");
+      return setError("Please enter a valid email address.");
     }
 
     setLoading(true);

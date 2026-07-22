@@ -211,7 +211,7 @@ app.post('/api/auth/authorize-email', async (req, res) => {
   const domain = trimmed.split('@')[1];
   const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
   if (!domain || !allowed.includes(domain)) {
-    return res.status(403).json({ error: 'Access restricted to clear.in and cleartax.com domains' });
+    return res.status(403).json({ error: 'Please enter a valid email address' });
   }
 
   try {
