@@ -50,8 +50,9 @@ const directConnectionString = (pgUser && pgPass && pgHost && pgDb)
 
 const connectionString = 
   cleanUrl(process.env.DATABASE_URL) || 
-  cleanUrl(directConnectionString) ||
   cleanUrl(process.env.cleartaxpipeline_POSTGRES_URL_NON_POOLING) ||
+  cleanUrl(process.env.POSTGRES_URL_NON_POOLING) ||
+  cleanUrl(directConnectionString) ||
   cleanUrl(process.env.cleartaxpipeline_POSTGRES_URL) || 
   cleanUrl(process.env.POSTGRES_URL);
 
