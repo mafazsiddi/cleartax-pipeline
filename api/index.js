@@ -6,12 +6,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const usePostgres = !!process.env.DATABASE_URL;
+const connectionString = 
+  process.env.DATABASE_URL || 
+  process.env.cleartaxpipeline_POSTGRES_URL || 
+  process.env.cleartaxpipeline_POSTGRES_URL_NON_POOLING ||
+  process.env.POSTGRES_URL;
+
+const usePostgres = !!connectionString;
 let pool = null;
 
 if (usePostgres) {
   pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connectionString,
     ssl: {
       rejectUnauthorized: false
     }
