@@ -207,11 +207,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
-  const trimmed = email.trim().toLowerCase();
+  const trimmed = email.trim();
   const domain = trimmed.split('@')[1];
   const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
-  const isAllowedTestEmail = trimmed === 'siddiquamafaz@gmail.com';
-  if (!isAllowedTestEmail && (!domain || !allowed.includes(domain))) {
+  if (!domain || !allowed.includes(domain.toLowerCase())) {
     return res.status(403).json({ error: 'Access restricted to clear.in and cleartax.com domains' });
   }
 
