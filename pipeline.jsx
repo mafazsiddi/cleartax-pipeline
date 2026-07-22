@@ -1036,6 +1036,9 @@ function TaskModal({ initial, defaultStage, members, session, onClose, onSave, o
   const [title, setTitle] = useState(initial?.title || "");
   const [desc, setDesc] = useState(initial?.description || "");
   const [assignee, setAssignee] = useState(initial?.assignee || "");
+  const userPart = session?.email ? session.email.split("@")[0] : "";
+  const defaultAssignedBy = members.find(m => m.toLowerCase() === userPart.toLowerCase()) || userPart;
+  const [assignedBy, setAssignedBy] = useState(initial?.assignedBy || defaultAssignedBy);
   const [priority, setPriority] = useState(initial?.priority || "medium");
   const [dueDate, setDueDate] = useState(initial?.dueDate || "");
   const [figmaLink, setFigmaLink] = useState(initial?.figmaLink || "");
@@ -1053,9 +1056,6 @@ function TaskModal({ initial, defaultStage, members, session, onClose, onSave, o
       setErr("Give the card a title so the team knows what it is.");
       return;
     }
-    const nextAssignedBy = (!initial)
-      ? (session?.email || "")
-      : (initial.assignee !== assignee ? (session?.email || "") : (initial.assignedBy || session?.email || ""));
 
     onSave({
       id: initial?.id || uid(),
@@ -1067,7 +1067,7 @@ function TaskModal({ initial, defaultStage, members, session, onClose, onSave, o
       figmaLink: figmaLink.trim(),
       stage,
       createdAt: initial?.createdAt || Date.now(),
-      assignedBy: nextAssignedBy,
+      assignedBy,
     });
   };
 
@@ -1160,33 +1160,31 @@ function TaskModal({ initial, defaultStage, members, session, onClose, onSave, o
             </label>
           </div>
 
-          <label className="field">
-            <span className="field-lbl">Mockup / Figma link</span>
-            <input
-              className="in"
-              type="url"
-              value={figmaLink}
-              onChange={(e) => setFigmaLink(e.target.value)}
-              placeholder="https://figma.com/…"
-            />
-          </label>
-          
-          {(initial?.assignedBy || session?.email) && (
-            <div style={{
-              marginTop: "16px",
-              fontSize: "12px",
-              color: "var(--ink-2)",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontFamily: "var(--font-body)"
-            }}>
-              <span style={{ fontWeight: "600" }}>Assigned by:</span>
-              <span style={{ opacity: 0.8 }}>
-                {initial?.assignedBy === session?.email ? `${initial.assignedBy} (You)` : (initial?.assignedBy || session?.email)}
-              </span>
-            </div>
-          )}
+          <div className="row2">
+            <label className="field">
+              <span className="field-lbl">Assigned by</span>
+              <div className="selwrap">
+                <select className="sel wide" value={assignedBy} onChange={(e) => setAssignedBy(e.target.value)}>
+                  <option value="">Unassigned</option>
+                  {members.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </label>
+            <label className="field">
+              <span className="field-lbl">Mockup / Figma link</span>
+              <input
+                className="in"
+                type="url"
+                value={figmaLink}
+                onChange={(e) => setFigmaLink(e.target.value)}
+                placeholder="https://figma.com/…"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="modal-foot">
