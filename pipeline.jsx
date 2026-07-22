@@ -157,24 +157,31 @@ function buildSeed() {
 /* =================================================================== */
 function LoginScreen({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const validateEmailDomain = (emailStr) => {
+    const domain = emailStr.trim().split("@")[1];
+    if (!domain) return false;
+    const allowed = ["clear.in", "cleartax.in", "cleartax.com"];
+    return allowed.includes(domain.toLowerCase());
+  };
 
   const handleAuthorize = async (e) => {
     e.preventDefault();
     setError("");
-    const trimmedEmail = email.trim();
-    const trimmedToken = token.trim();
-    if (!trimmedEmail) return setError("Please enter your email address.");
-    if (!trimmedToken) return setError("Please enter your invitation token.");
+    const trimmed = email.trim();
+    if (!trimmed) return setError("Please enter your email address.");
+    if (!validateEmailDomain(trimmed)) {
+      return setError("Please enter your email address.");
+    }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/verify-token", {
+      const res = await fetch("/api/auth/authorize-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, token: trimmedToken }),
+        body: JSON.stringify({ email: trimmed }),
       });
       let data = {};
       try {
@@ -185,7 +192,7 @@ function LoginScreen({ onLoginSuccess }) {
         return;
       }
       if (!res.ok) {
-        setError(data.error || "Invalid or expired invitation token.");
+        setError(data.error || "Failed to authorize email.");
       } else {
         localStorage.setItem("pipeline_session", JSON.stringify(data));
         onLoginSuccess(data);
@@ -243,10 +250,10 @@ function LoginScreen({ onLoginSuccess }) {
         <p style={{
           fontSize: "14px",
           color: "rgba(255, 255, 255, 0.6)",
-          margin: "0 0 24px 0",
+          margin: "0 0 32px 0",
           lineHeight: "1.5",
         }}>
-          To access the board, click your magic link or enter your email and invitation token below.
+          Team Kanban Board
         </p>
 
         {error && (
@@ -269,7 +276,7 @@ function LoginScreen({ onLoginSuccess }) {
         )}
 
         <form onSubmit={handleAuthorize}>
-          <div style={{ textAlign: "left", marginBottom: "16px" }}>
+          <div style={{ textAlign: "left", marginBottom: "20px" }}>
             <label style={{
               display: "block",
               fontSize: "12px",
@@ -286,38 +293,6 @@ function LoginScreen({ onLoginSuccess }) {
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                borderRadius: "12px",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                background: "rgba(255, 255, 255, 0.05)",
-                color: "white",
-                fontSize: "15px",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          <div style={{ textAlign: "left", marginBottom: "24px" }}>
-            <label style={{
-              display: "block",
-              fontSize: "12px",
-              fontWeight: "600",
-              color: "rgba(255, 255, 255, 0.8)",
-              marginBottom: "8px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}>
-              Invitation Token
-            </label>
-            <input
-              type="text"
-              placeholder="Paste invitation token"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
               required
               style={{
                 width: "100%",
@@ -1141,79 +1116,16 @@ function TaskModal({ initial, defaultStage, members, onClose, onSave, onDelete }
 
 function TeamModal({ members, tasks, onAdd, onRemove, onClear, onClose }) {
   const [name, setName] = useState("");
-  const [invites, setInvites] = useState([]);
-  const [memberEmails, setMemberEmails] = useState({});
-  const [copiedName, setCopiedName] = useState("");
-
   const count = (m) => tasks.filter((t) => t.assignee === m).length;
-
-  const loadInvites = async () => {
-    try {
-      const res = await fetch("/api/auth/invites");
-      if (res.ok) {
-        const data = await res.json();
-        setInvites(data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    loadInvites();
-  }, []);
-
   const add = () => {
     onAdd(name);
     setName("");
   };
-
-  const handleGenerateInvite = async (mName) => {
-    const email = memberEmails[mName]?.trim();
-    if (!email) return alert("Please enter a valid email address.");
-
-    try {
-      const res = await fetch("/api/auth/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: mName, email }),
-      });
-      if (res.ok) {
-        const invite = await res.json();
-        setInvites((prev) => {
-          const filtered = prev.filter((i) => i.name.toLowerCase() !== mName.toLowerCase());
-          return [...filtered, invite];
-        });
-        const link = `${window.location.origin}/?email=${encodeURIComponent(invite.email)}&token=${invite.token}`;
-        await navigator.clipboard.writeText(link);
-        setCopiedName(mName);
-        setTimeout(() => setCopiedName(""), 2000);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to generate invite.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to connect to server.");
-    }
-  };
-
-  const handleCopyLink = async (invite) => {
-    const link = `${window.location.origin}/?email=${encodeURIComponent(invite.email)}&token=${invite.token}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiedName(invite.name);
-      setTimeout(() => setCopiedName(""), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal narrow" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Team &amp; Magic Links</h2>
+          <h2>Team</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
@@ -1229,74 +1141,29 @@ function TeamModal({ members, tasks, onAdd, onRemove, onClear, onClose }) {
               placeholder="Add a teammate's name"
             />
             <button className="btn primary" onClick={add}>
-              <UserPlus size={15} /> Add Teammate
+              <UserPlus size={15} /> Add
             </button>
           </div>
 
-          <ul className="member-list" style={{ marginTop: "16px" }}>
+          <ul className="member-list">
             {members.length === 0 && <li className="empty-row">No teammates yet.</li>}
-            {members.map((m) => {
-              const invite = invites.find((i) => i.name.toLowerCase() === m.toLowerCase());
-              return (
-                <li key={m} className="member-row" style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "12px", borderBottom: "1px solid var(--line)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span className="avatar sm" style={{ background: avatarColor(m) }}>
-                        {initials(m)}
-                      </span>
-                      <div>
-                        <span className="member-name" style={{ display: "block", fontWeight: "600" }}>{m}</span>
-                        <span className="member-count" style={{ fontSize: "11.5px", color: "var(--muted)" }}>{count(m)} cards</span>
-                      </div>
-                    </div>
-                    <button
-                      className="icon-btn small"
-                      onClick={() => onRemove(m)}
-                      aria-label={`Remove ${m}`}
-                      title="Remove teammate"
-                      style={{ color: "var(--p-urgent)" }}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", paddingLeft: "38px" }}>
-                    {invite ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: "8px" }}>
-                        <span style={{ fontSize: "12px", color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={invite.email}>
-                          {invite.email}
-                        </span>
-                        <button
-                          className="btn ghost"
-                          style={{ padding: "4px 8px", fontSize: "11.5px", height: "28px" }}
-                          onClick={() => handleCopyLink(invite)}
-                        >
-                          {copiedName.toLowerCase() === invite.name.toLowerCase() ? "Copied! ✓" : "Copy Magic Link 🔗"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
-                        <input
-                          type="email"
-                          placeholder="Teammate's email"
-                          className="in"
-                          style={{ padding: "4px 8px", fontSize: "12px", height: "28px", flex: 1 }}
-                          value={memberEmails[m] || ""}
-                          onChange={(e) => setMemberEmails({ ...memberEmails, [m]: e.target.value })}
-                        />
-                        <button
-                          className="btn primary"
-                          style={{ padding: "4px 10px", fontSize: "11.5px", height: "28px", whiteSpace: "nowrap" }}
-                          onClick={() => handleGenerateInvite(m)}
-                        >
-                          Create Link
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+            {members.map((m) => (
+              <li key={m} className="member-row">
+                <span className="avatar sm" style={{ background: avatarColor(m) }}>
+                  {initials(m)}
+                </span>
+                <span className="member-name">{m}</span>
+                <span className="member-count">{count(m)} cards</span>
+                <button
+                  className="icon-btn small"
+                  onClick={() => onRemove(m)}
+                  aria-label={`Remove ${m}`}
+                  title="Remove teammate"
+                >
+                  <X size={15} />
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
 
