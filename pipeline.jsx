@@ -783,7 +783,7 @@ export default function App() {
             <LayoutGrid size={16} strokeWidth={2.4} />
           </span>
           <div className="brand-txt">
-            <h1>Pipeline</h1>
+            <h1>Mira</h1>
             <span className="brand-sub">Design &amp; development board</span>
           </div>
         </div>

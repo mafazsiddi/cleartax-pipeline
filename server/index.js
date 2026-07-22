@@ -128,7 +128,7 @@ app.get('*', (req, res, next) => {
 initDb()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`🚀 Pipeline Server running on port ${PORT}`);
+      console.log(`🚀 Mira Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
