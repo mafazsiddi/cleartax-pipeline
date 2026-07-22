@@ -182,15 +182,14 @@ function LoginScreen({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const { error: otpErr } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: window.location.origin,
-        }
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
       });
-      if (otpErr) {
-        setError(otpErr.message);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to send code.");
       } else {
         setCodeSent(true);
         setSuccessMsg("A 6-digit verification code has been sent to your email!");
@@ -210,13 +209,17 @@ function LoginScreen({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const { error: verifyErr } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: trimmedCode,
-        type: "email",
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), otp: trimmedCode }),
       });
-      if (verifyErr) {
-        setError(verifyErr.message);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to verify code.");
+      } else {
+        localStorage.setItem("pipeline_session", JSON.stringify(data));
+        onLoginSuccess(data);
       }
     } catch (err) {
       setError("Failed to verify code. Please try again.");
@@ -467,34 +470,37 @@ export default function App() {
   const [apiConnected, setApiConnected] = useState(false);
 
   useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false);
-      return;
+    const stored = localStorage.getItem("pipeline_session");
+    if (stored) {
+      try {
+        setSession(JSON.parse(stored));
+      } catch (e) {
+        localStorage.removeItem("pipeline_session");
+      }
     }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => {
-      if (subscription) subscription.unsubscribe();
-    };
+    setAuthLoading(false);
   }, []);
 
   const handleLogout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      const token = session?.token;
+      if (token) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+      }
+    } catch (e) {
+      console.error("Logout error", e);
     }
+    localStorage.removeItem("pipeline_session");
+    setSession(null);
   };
 
   /* ---- load ---- */
   useEffect(() => {
     if (authLoading) return;
-    if (supabase && !session) {
+    if (!session) {
       setLoading(false);
       return;
     }
@@ -505,8 +511,8 @@ export default function App() {
       // 1. Try API Server first
       try {
         const headers = {};
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         const res = await fetch("/api/board", { headers });
         if (res.ok) {
@@ -579,8 +585,8 @@ export default function App() {
     if (apiConnected) {
       try {
         const headers = { "Content-Type": "application/json" };
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         await fetch("/api/tasks", {
           method: "POST",
@@ -598,8 +604,8 @@ export default function App() {
     if (apiConnected) {
       try {
         const headers = {};
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         await fetch(`/api/tasks/${id}`, { method: "DELETE", headers });
       } catch (e) {
@@ -613,8 +619,8 @@ export default function App() {
     if (apiConnected) {
       try {
         const headers = { "Content-Type": "application/json" };
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         await fetch(`/api/tasks/${id}/stage`, {
           method: "PATCH",
@@ -634,8 +640,8 @@ export default function App() {
     if (apiConnected) {
       try {
         const headers = { "Content-Type": "application/json" };
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         await fetch("/api/members", {
           method: "POST",
@@ -654,8 +660,8 @@ export default function App() {
     if (apiConnected) {
       try {
         const headers = {};
-        if (session?.access_token) {
-          headers["Authorization"] = `Bearer ${session.access_token}`;
+        if (session?.token) {
+          headers["Authorization"] = `Bearer ${session.token}`;
         }
         await fetch(`/api/members/${encodeURIComponent(name)}`, { method: "DELETE", headers });
       } catch (e) {
@@ -670,8 +676,8 @@ export default function App() {
       if (apiConnected) {
         try {
           const headers = {};
-          if (session?.access_token) {
-            headers["Authorization"] = `Bearer ${session.access_token}`;
+          if (session?.token) {
+            headers["Authorization"] = `Bearer ${session.token}`;
           }
           await fetch("/api/clear", { method: "POST", headers });
         } catch (e) {
@@ -860,7 +866,7 @@ export default function App() {
           )}
 
           {session && (
-            <button className="btn ghost" onClick={handleLogout} style={{ color: "#EF4444", borderColor: "rgba(239, 68, 68, 0.2)" }} title={`Logged in as ${session.user.email}`}>
+            <button className="btn ghost" onClick={handleLogout} style={{ color: "#EF4444", borderColor: "rgba(239, 68, 68, 0.2)" }} title={`Logged in as ${session.email}`}>
               <LogOut size={15} />
               <span className="btn-lbl">Log Out</span>
             </button>

@@ -116,6 +116,20 @@ async function initPg() {
         name VARCHAR(255) PRIMARY KEY
       )
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auth_otps (
+        email VARCHAR(255) PRIMARY KEY,
+        otp VARCHAR(10) NOT NULL,
+        expires_at BIGINT NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        token VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        expires_at BIGINT NOT NULL
+      )
+    `);
 
     // Seed data if empty
     const membersRes = await client.query(`SELECT * FROM members`);
@@ -154,16 +168,13 @@ function maskConnectionString(url) {
   }
 }
 
-let supabaseAdmin = null;
-const supabaseUrl = process.env.NEXT_PUBLIC_cleartaxpipeline_SUPABASE_URL;
-const supabaseAnonKey = process.env.cleartaxpipeline_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_cleartaxpipeline_SUPABASE_PUBLISHABLE_KEY;
-
-if (supabaseUrl && supabaseAnonKey) {
-  supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey);
-}
-
 const authenticateUser = async (req, res, next) => {
-  if (!supabaseAdmin) {
+  // Bypass auth check for OTP endpoints
+  if (req.path.startsWith('/api/auth/')) {
+    return next();
+  }
+
+  if (!usePostgres) {
     return next();
   }
 
@@ -174,19 +185,14 @@ const authenticateUser = async (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !user) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token', details: error?.message });
+    const dbRes = await pool.query('SELECT * FROM user_sessions WHERE token = $1', [token]);
+    const session = dbRes.rows[0];
+
+    if (!session || Date.now() > Number(session.expires_at)) {
+      return res.status(401).json({ error: 'Unauthorized: Session expired or invalid' });
     }
 
-    const email = user.email || '';
-    const domain = email.split('@')[1];
-    const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
-    if (!domain || !allowed.includes(domain.toLowerCase())) {
-      return res.status(403).json({ error: 'Forbidden: Access restricted to @clear.in or @cleartax.com domains.' });
-    }
-
-    req.user = user;
+    req.user = { email: session.email };
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);
@@ -195,6 +201,139 @@ const authenticateUser = async (req, res, next) => {
 };
 
 app.use(authenticateUser);
+
+// Custom Auth Endpoints
+app.post('/api/auth/send-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  const trimmed = email.trim();
+  const domain = trimmed.split('@')[1];
+  const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
+  if (!domain || !allowed.includes(domain.toLowerCase())) {
+    return res.status(403).json({ error: 'Access restricted to clear.in and cleartax.com domains' });
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+  try {
+    if (usePostgres) {
+      await initPg();
+      await pool.query(
+        `INSERT INTO auth_otps (email, otp, expires_at) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (email) DO UPDATE SET otp = $2, expires_at = $3`,
+        [trimmed, otp, expiresAt]
+      );
+    } else {
+      memoryBoardData.otps = memoryBoardData.otps || {};
+      memoryBoardData.otps[trimmed] = { otp, expiresAt };
+    }
+
+    const resendApiKey = process.env.RESEND_API_KEY || 're_jMdBxx4F_BmrEghhjChBb8QP26ZybA6Eu';
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`
+      },
+      body: JSON.stringify({
+        from: 'Pipeline Auth <onboarding@resend.dev>',
+        to: [trimmed],
+        subject: 'Your Pipeline Verification Code',
+        html: `
+          <div style="font-family: sans-serif; padding: 24px; max-width: 480px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h2 style="color: #1e293b; margin-top: 0; font-size: 20px;">Pipeline Access Code</h2>
+            <p style="color: #475569; font-size: 15px; line-height: 1.5;">Use the verification code below to sign in to the Pipeline Kanban board:</p>
+            <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
+              <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4f46e5;">${otp}</span>
+            </div>
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.4; margin-bottom: 0;">This code will expire in 5 minutes. If you did not request this code, you can safely ignore this email.</p>
+          </div>
+        `
+      })
+    });
+
+    if (!resendRes.ok) {
+      const errorText = await resendRes.text();
+      console.error('Resend API error:', errorText);
+      return res.status(500).json({ error: 'Failed to send verification email via Resend' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    return res.status(500).json({ error: 'Server error sending OTP' });
+  }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
+
+  const trimmedEmail = email.trim();
+  const trimmedOtp = otp.trim();
+
+  try {
+    let otpRecord = null;
+    if (usePostgres) {
+      await initPg();
+      const dbRes = await pool.query('SELECT * FROM auth_otps WHERE email = $1', [trimmedEmail]);
+      otpRecord = dbRes.rows[0];
+    } else {
+      memoryBoardData.otps = memoryBoardData.otps || {};
+      otpRecord = memoryBoardData.otps[trimmedEmail];
+    }
+
+    if (!otpRecord || otpRecord.otp !== trimmedOtp || Date.now() > Number(otpRecord.expires_at)) {
+      return res.status(400).json({ error: 'Invalid or expired verification code' });
+    }
+
+    if (usePostgres) {
+      await pool.query('DELETE FROM auth_otps WHERE email = $1', [trimmedEmail]);
+    } else {
+      delete memoryBoardData.otps[trimmedEmail];
+    }
+
+    const sessionToken = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+    const sessionExpiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+    if (usePostgres) {
+      await pool.query(
+        `INSERT INTO user_sessions (token, email, expires_at) VALUES ($1, $2, $3)`,
+        [sessionToken, trimmedEmail, sessionExpiresAt]
+      );
+    } else {
+      memoryBoardData.sessions = memoryBoardData.sessions || {};
+      memoryBoardData.sessions[sessionToken] = { email: trimmedEmail, expiresAt: sessionExpiresAt };
+    }
+
+    return res.json({ token: sessionToken, email: trimmedEmail });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    return res.status(500).json({ error: 'Server error verifying OTP' });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      if (usePostgres) {
+        await pool.query('DELETE FROM user_sessions WHERE token = $1', [token]);
+      } else {
+        if (memoryBoardData.sessions) {
+          delete memoryBoardData.sessions[token];
+        }
+      }
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+  }
+  return res.json({ success: true });
+});
 
 // API Routes
 app.get(['/api/board', '/board', '/'], async (req, res) => {
