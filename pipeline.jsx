@@ -183,7 +183,14 @@ function LoginScreen({ onLoginSuccess }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed }),
       });
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        const text = await res.text();
+        setError(`Server error (${res.status}): ${text.slice(0, 150)}`);
+        return;
+      }
       if (!res.ok) {
         setError(data.error || "Failed to authorize email.");
       } else {
@@ -191,7 +198,7 @@ function LoginScreen({ onLoginSuccess }) {
         onLoginSuccess(data);
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      setError(`Network/unexpected error: ${err.message}`);
     } finally {
       setLoading(false);
     }
