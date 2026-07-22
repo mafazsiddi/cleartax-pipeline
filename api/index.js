@@ -6,6 +6,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+function cleanUrl(url) {
+  if (!url) return null;
+  const s = url.trim();
+  if (s.includes('[YOUR-PASSWORD]') || s.includes('[PASSWORD]') || s.includes('<password>')) {
+    return null;
+  }
+  // Remove literal double quotes if Vercel config double-quoted the string value
+  return s.replace(/^"(.*)"$/, '$1');
+}
+
 const directConnectionString = (
   process.env.cleartaxpipeline_POSTGRES_USER &&
   process.env.cleartaxpipeline_POSTGRES_PASSWORD &&
@@ -14,11 +24,11 @@ const directConnectionString = (
 ) ? `postgres://${process.env.cleartaxpipeline_POSTGRES_USER}:${process.env.cleartaxpipeline_POSTGRES_PASSWORD}@${process.env.cleartaxpipeline_POSTGRES_HOST}:5432/${process.env.cleartaxpipeline_POSTGRES_DATABASE}` : null;
 
 const connectionString = 
-  process.env.DATABASE_URL || 
-  directConnectionString ||
-  process.env.cleartaxpipeline_POSTGRES_URL_NON_POOLING ||
-  process.env.cleartaxpipeline_POSTGRES_URL || 
-  process.env.POSTGRES_URL;
+  cleanUrl(process.env.DATABASE_URL) || 
+  cleanUrl(directConnectionString) ||
+  cleanUrl(process.env.cleartaxpipeline_POSTGRES_URL_NON_POOLING) ||
+  cleanUrl(process.env.cleartaxpipeline_POSTGRES_URL) || 
+  cleanUrl(process.env.POSTGRES_URL);
 
 const usePostgres = !!connectionString;
 let pool = null;
