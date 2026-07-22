@@ -673,8 +673,8 @@ export default function App() {
     );
   }
 
-  if (supabase && !session) {
-    return <LoginScreen />;
+  if (!session) {
+    return <LoginScreen onLoginSuccess={setSession} />;
   }
 
   return (
