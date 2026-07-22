@@ -21,11 +21,7 @@ function cleanUrl(url) {
     lower === 'undefined' ||
     lower === 'null' ||
     lower === 'false' ||
-    lower === '' ||
-    lower.includes('[your-password]') ||
-    lower.includes('[password]') ||
-    lower.includes('<password>') ||
-    lower.includes('your-password')
+    lower === ''
   ) {
     return null;
   }
@@ -33,7 +29,14 @@ function cleanUrl(url) {
   if (!lower.startsWith('postgres://') && !lower.startsWith('postgresql://')) {
     return null;
   }
-  return s;
+  // Test if it can be parsed successfully by new URL()
+  try {
+    const normalized = s.startsWith('postgresql://') ? s.replace('postgresql://', 'http://') : s.replace('postgres://', 'http://');
+    new URL(normalized);
+    return s;
+  } catch (e) {
+    return null;
+  }
 }
 
 const pgUser = cleanVal(process.env.cleartaxpipeline_POSTGRES_USER);
