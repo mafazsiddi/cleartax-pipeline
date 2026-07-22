@@ -173,7 +173,7 @@ function LoginScreen({ onLoginSuccess }) {
     const trimmed = email.trim();
     if (!trimmed) return setError("Please enter your email address.");
     if (!validateEmailDomain(trimmed)) {
-      return setError("Please enter your email address.");
+      return setError("Please enter correct email address.");
     }
 
     setLoading(true);
@@ -210,67 +210,73 @@ function LoginScreen({ onLoginSuccess }) {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "radial-gradient(circle at 10% 20%, rgb(87, 108, 117) 0%, rgb(37, 50, 55) 100.2%)",
-      fontFamily: "'Space Grotesk', sans-serif",
+      background: "linear-gradient(135deg, #F5F6F9 0%, #EEF0F5 100%)",
+      fontFamily: "'Space Grotesk', system-ui, -apple-system, sans-serif",
       padding: "20px",
     }}>
       <div style={{
-        background: "rgba(255, 255, 255, 0.08)",
-        backdropFilter: "blur(20px)",
-        borderRadius: "24px",
-        border: "1px solid rgba(255, 255, 255, 0.15)",
+        background: "rgba(255, 255, 255, 0.7)",
+        backdropFilter: "blur(16px)",
+        borderRadius: "20px",
+        border: "1px solid #E6E9F0",
         width: "100%",
-        maxWidth: "420px",
+        maxWidth: "400px",
         padding: "40px 32px",
-        boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3)",
+        boxShadow: "0 12px 40px rgba(20, 28, 48, 0.12)",
         textAlign: "center",
       }}>
         <div style={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          width: "64px",
-          height: "64px",
-          borderRadius: "16px",
-          background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
-          marginBottom: "24px",
+          width: "54px",
+          height: "54px",
+          borderRadius: "14px",
+          background: "#4338CA",
+          marginBottom: "20px",
           color: "white",
+          boxShadow: "inset 0 -2px 4px rgba(0,0,0,.15)",
         }}>
-          <LayoutGrid size={32} />
+          <LayoutGrid size={24} strokeWidth={2.4} />
         </div>
         <h2 style={{
-          fontSize: "28px",
+          fontSize: "24px",
           fontWeight: "700",
-          color: "white",
-          margin: "0 0 8px 0",
+          color: "#1B2333",
+          margin: "0 0 6px 0",
           letterSpacing: "-0.5px",
+          fontFamily: "'Space Grotesk', sans-serif",
         }}>
           Pipeline
         </h2>
         <p style={{
-          fontSize: "14px",
-          color: "rgba(255, 255, 255, 0.6)",
-          margin: "0 0 32px 0",
+          fontSize: "13.5px",
+          color: "#586074",
+          margin: "0 0 28px 0",
           lineHeight: "1.5",
+          fontWeight: "500",
+          fontFamily: "'Inter', sans-serif",
         }}>
-          Team Kanban Board
+          Design &amp; development board
         </p>
 
         {error && (
           <div style={{
-            background: "rgba(239, 68, 68, 0.1)",
-            border: "1px solid rgba(239, 68, 68, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 16px",
-            color: "#FCA5A5",
-            fontSize: "13px",
+            background: "#FDECED",
+            border: "1px solid #F7C9CB",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            color: "#E5484D",
+            fontSize: "12.5px",
             textAlign: "left",
             marginBottom: "20px",
             display: "flex",
             alignItems: "flex-start",
             gap: "8px",
+            fontWeight: "500",
+            fontFamily: "'Inter', sans-serif",
           }}>
-            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: "2px" }} />
             <span>{error}</span>
           </div>
         )}
@@ -279,12 +285,13 @@ function LoginScreen({ onLoginSuccess }) {
           <div style={{ textAlign: "left", marginBottom: "20px" }}>
             <label style={{
               display: "block",
-              fontSize: "12px",
+              fontSize: "11.5px",
               fontWeight: "600",
-              color: "rgba(255, 255, 255, 0.8)",
+              color: "#586074",
               marginBottom: "8px",
               textTransform: "uppercase",
               letterSpacing: "0.5px",
+              fontFamily: "'Inter', sans-serif",
             }}>
               Email Address
             </label>
@@ -296,14 +303,26 @@ function LoginScreen({ onLoginSuccess }) {
               required
               style={{
                 width: "100%",
-                padding: "12px 16px",
-                borderRadius: "12px",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                background: "rgba(255, 255, 255, 0.05)",
-                color: "white",
-                fontSize: "15px",
+                padding: "10px 14px",
+                borderRadius: "10px",
+                border: "1px solid #E6E9F0",
+                background: "#FBFBFD",
+                color: "#1B2333",
+                fontSize: "14px",
                 outline: "none",
                 boxSizing: "border-box",
+                fontFamily: "'Inter', sans-serif",
+                transition: "all 0.15s ease",
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = "#4338CA";
+                e.target.style.boxShadow = "0 0 0 3px #EEEDFB";
+                e.target.style.background = "#ffffff";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "#E6E9F0";
+                e.target.style.boxShadow = "none";
+                e.target.style.background = "#FBFBFD";
               }}
             />
           </div>
@@ -313,16 +332,24 @@ function LoginScreen({ onLoginSuccess }) {
             disabled={loading}
             style={{
               width: "100%",
-              padding: "14px",
-              borderRadius: "12px",
+              padding: "12px",
+              borderRadius: "10px",
               border: "none",
-              background: "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
+              background: "#4338CA",
               color: "white",
-              fontSize: "15px",
+              fontSize: "14px",
               fontWeight: "600",
               cursor: loading ? "not-allowed" : "pointer",
-              transition: "all 0.2s ease",
+              transition: "all 0.14s ease",
               opacity: loading ? 0.7 : 1,
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: "0 1px 2px rgba(20,28,48,.05)",
+            }}
+            onMouseOver={(e) => {
+              if (!loading) e.target.style.background = "#5B50E6";
+            }}
+            onMouseOut={(e) => {
+              if (!loading) e.target.style.background = "#4338CA";
             }}
           >
             {loading ? "Verifying..." : "Access Board"}
