@@ -282,7 +282,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
 
-  const trimmedEmail = email.trim();
+  const trimmedEmail = email.trim().toLowerCase();
   const trimmedOtp = otp.trim();
 
   try {
