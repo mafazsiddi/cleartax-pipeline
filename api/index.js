@@ -6,22 +6,36 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-function cleanUrl(url) {
-  if (!url) return null;
-  const s = url.trim();
-  if (s.includes('[YOUR-PASSWORD]') || s.includes('[PASSWORD]') || s.includes('<password>')) {
-    return null;
-  }
-  // Remove literal double quotes if Vercel config double-quoted the string value
-  return s.replace(/^"(.*)"$/, '$1');
+function cleanVal(v) {
+  if (!v) return '';
+  const trimmed = v.trim();
+  // Strip enclosing single or double quotes
+  return trimmed.replace(/^["'](.*)["']$/, '$1');
 }
 
-const directConnectionString = (
-  process.env.cleartaxpipeline_POSTGRES_USER &&
-  process.env.cleartaxpipeline_POSTGRES_PASSWORD &&
-  process.env.cleartaxpipeline_POSTGRES_HOST &&
-  process.env.cleartaxpipeline_POSTGRES_DATABASE
-) ? `postgres://${process.env.cleartaxpipeline_POSTGRES_USER}:${process.env.cleartaxpipeline_POSTGRES_PASSWORD}@${process.env.cleartaxpipeline_POSTGRES_HOST}:5432/${process.env.cleartaxpipeline_POSTGRES_DATABASE}` : null;
+function cleanUrl(url) {
+  if (!url) return null;
+  const s = cleanVal(url);
+  const lower = s.toLowerCase();
+  if (
+    lower.includes('[your-password]') ||
+    lower.includes('[password]') ||
+    lower.includes('<password>') ||
+    lower.includes('your-password')
+  ) {
+    return null;
+  }
+  return s;
+}
+
+const pgUser = cleanVal(process.env.cleartaxpipeline_POSTGRES_USER);
+const pgPass = cleanVal(process.env.cleartaxpipeline_POSTGRES_PASSWORD);
+const pgHost = cleanVal(process.env.cleartaxpipeline_POSTGRES_HOST);
+const pgDb = cleanVal(process.env.cleartaxpipeline_POSTGRES_DATABASE);
+
+const directConnectionString = (pgUser && pgPass && pgHost && pgDb) 
+  ? `postgres://${pgUser}:${pgPass}@${pgHost}:5432/${pgDb}` 
+  : null;
 
 const connectionString = 
   cleanUrl(process.env.DATABASE_URL) || 
