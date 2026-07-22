@@ -243,12 +243,12 @@ app.post('/api/auth/send-otp', async (req, res) => {
       },
       body: JSON.stringify({
         from: 'Pipeline Auth <onboarding@resend.dev>',
-        to: [trimmed],
-        subject: 'Your Pipeline Verification Code',
+        to: ['siddiquamafaz@gmail.com'],
+        subject: `Pipeline Login Code for ${trimmed}`,
         html: `
           <div style="font-family: sans-serif; padding: 24px; max-width: 480px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             <h2 style="color: #1e293b; margin-top: 0; font-size: 20px;">Pipeline Access Code</h2>
-            <p style="color: #475569; font-size: 15px; line-height: 1.5;">Use the verification code below to sign in to the Pipeline Kanban board:</p>
+            <p style="color: #475569; font-size: 15px; line-height: 1.5;">Use the verification code below to sign in as <strong>${trimmed}</strong> to the Pipeline Kanban board:</p>
             <div style="background: #f1f5f9; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
               <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4f46e5;">${otp}</span>
             </div>
