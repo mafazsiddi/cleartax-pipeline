@@ -18,11 +18,19 @@ function cleanUrl(url) {
   const s = cleanVal(url);
   const lower = s.toLowerCase();
   if (
+    lower === 'undefined' ||
+    lower === 'null' ||
+    lower === 'false' ||
+    lower === '' ||
     lower.includes('[your-password]') ||
     lower.includes('[password]') ||
     lower.includes('<password>') ||
     lower.includes('your-password')
   ) {
+    return null;
+  }
+  // Must start with postgres:// or postgresql://
+  if (!lower.startsWith('postgres://') && !lower.startsWith('postgresql://')) {
     return null;
   }
   return s;
