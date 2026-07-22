@@ -131,15 +131,8 @@ function sortTasks(a, b) {
 }
 
 /* ------------------------------- seed ----------------------------- */
-const SEED_MEMBERS = ["Aarav", "Priya", "Jordan", "Sana"];
-const SEED_TASKS = [
-  { title: "Redesign pricing page hero", stage: "design", priority: "high", assignee: "Priya", figmaLink: "https://figma.com", description: "New hero with a clearer plan comparison. Waiting on final copy from marketing.", due: 3 },
-  { title: "Build /income-tax-calculator landing", stage: "development", priority: "urgent", assignee: "Aarav", figmaLink: "", description: "Responsive build from approved mockups. Wire up the calculator component.", due: 1 },
-  { title: "QA checkout flow on mobile", stage: "qa", priority: "medium", assignee: "Sana", figmaLink: "", description: "Test iOS + Android, verify all payment states and error handling.", due: -1 },
-  { title: "Icon set for dashboard cards", stage: "design_review", priority: "low", assignee: "Jordan", figmaLink: "https://figma.com", description: "12 line icons, awaiting design review sign-off.", due: 5 },
-  { title: "Refresh footer links + legal", stage: "backlog", priority: "low", assignee: "", figmaLink: "", description: "Update footer nav and add new compliance links.", due: null },
-  { title: "Homepage launch banner", stage: "done", priority: "high", assignee: "Aarav", figmaLink: "", description: "Shipped and verified in production.", due: null },
-];
+const SEED_MEMBERS = [];
+const SEED_TASKS = [];
 function buildSeed() {
   const now = Date.now();
   return SEED_TASKS.map((t, i) => ({

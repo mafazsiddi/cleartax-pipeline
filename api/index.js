@@ -20,15 +20,8 @@ if (usePostgres) {
 
 // Memory fallback store (used if process.env.DATABASE_URL is not set)
 let memoryBoardData = {
-  members: ['Aarav', 'Priya', 'Jordan', 'Sana'],
-  tasks: [
-    { id: 't_1', title: 'Redesign pricing page hero', stage: 'design', priority: 'high', assignee: 'Priya', figmaLink: 'https://figma.com', description: 'New hero with a clearer plan comparison.', dueDate: '' },
-    { id: 't_2', title: 'Build /income-tax-calculator landing', stage: 'development', priority: 'urgent', assignee: 'Aarav', figmaLink: '', description: 'Responsive build from approved mockups.', dueDate: '' },
-    { id: 't_3', title: 'QA checkout flow on mobile', stage: 'qa', priority: 'medium', assignee: 'Sana', figmaLink: '', description: 'Test iOS + Android.', dueDate: '' },
-    { id: 't_4', title: 'Icon set for dashboard cards', stage: 'design_review', priority: 'low', assignee: 'Jordan', figmaLink: 'https://figma.com', description: '12 line icons.', dueDate: '' },
-    { id: 't_5', title: 'Refresh footer links + legal', stage: 'backlog', priority: 'low', assignee: '', figmaLink: '', description: 'Update footer nav.', dueDate: '' },
-    { id: 't_6', title: 'Homepage launch banner', stage: 'done', priority: 'high', assignee: 'Aarav', figmaLink: '', description: 'Shipped to production.', dueDate: '' }
-  ]
+  members: [],
+  tasks: []
 };
 
 // Auto initialize tables if using Postgres

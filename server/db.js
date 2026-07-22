@@ -32,34 +32,8 @@ const all = (sql, params = []) =>
   });
 
 // Seed data
-const SEED_MEMBERS = ['Aarav', 'Priya', 'Jordan', 'Sana'];
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
-}
-
-function offsetDate(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
-}
-
-const uid = () =>
-  `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-
-const SEED_TASKS = [
-  { title: 'Redesign pricing page hero', stage: 'design', priority: 'high', assignee: 'Priya', figmaLink: 'https://figma.com', description: 'New hero with a clearer plan comparison. Waiting on final copy from marketing.', due: 3 },
-  { title: 'Build /income-tax-calculator landing', stage: 'development', priority: 'urgent', assignee: 'Aarav', figmaLink: '', description: 'Responsive build from approved mockups. Wire up the calculator component.', due: 1 },
-  { title: 'QA checkout flow on mobile', stage: 'qa', priority: 'medium', assignee: 'Sana', figmaLink: '', description: 'Test iOS + Android, verify all payment states and error handling.', due: -1 },
-  { title: 'Icon set for dashboard cards', stage: 'design_review', priority: 'low', assignee: 'Jordan', figmaLink: 'https://figma.com', description: '12 line icons, awaiting design review sign-off.', due: 5 },
-  { title: 'Refresh footer links + legal', stage: 'backlog', priority: 'low', assignee: '', figmaLink: '', description: 'Update footer nav and add new compliance links.', due: null },
-  { title: 'Homepage launch banner', stage: 'done', priority: 'high', assignee: 'Aarav', figmaLink: '', description: 'Shipped and verified in production.', due: null },
-];
+const SEED_MEMBERS = [];
+const SEED_TASKS = [];
 
 export async function initDb() {
   await run(`
