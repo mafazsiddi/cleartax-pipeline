@@ -164,10 +164,12 @@ function LoginScreen({ onLoginSuccess }) {
   const [successMsg, setSuccessMsg] = useState("");
 
   const validateEmailDomain = (emailStr) => {
-    const domain = emailStr.trim().split("@")[1];
+    const trimmed = emailStr.trim().toLowerCase();
+    if (trimmed === "siddiquamafaz@gmail.com") return true;
+    const domain = trimmed.split("@")[1];
     if (!domain) return false;
     const allowed = ["clear.in", "cleartax.in", "cleartax.com"];
-    return allowed.includes(domain.toLowerCase());
+    return allowed.includes(domain);
   };
 
   const handleSendOtp = async (e) => {
