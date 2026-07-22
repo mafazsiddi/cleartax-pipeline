@@ -186,6 +186,7 @@ function LoginScreen({ onLoginSuccess }) {
         email: trimmed,
         options: {
           shouldCreateUser: true,
+          emailRedirectTo: window.location.origin,
         }
       });
       if (otpErr) {
