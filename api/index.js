@@ -124,6 +124,17 @@ async function initPg() {
   }
 }
 
+function maskConnectionString(url) {
+  if (!url) return 'null';
+  try {
+    const normalized = url.startsWith('postgresql://') ? url.replace('postgresql://', 'http://') : url.replace('postgres://', 'http://');
+    const parsed = new URL(normalized);
+    return `${url.startsWith('postgresql://') ? 'postgresql' : 'postgres'}://${parsed.username}:****@${parsed.host}${parsed.pathname}`;
+  } catch (e) {
+    return `invalid-format: ${url.slice(0, 30)}...`;
+  }
+}
+
 // API Routes
 app.get(['/api/board', '/board', '/'], async (req, res) => {
   try {
@@ -139,7 +150,12 @@ app.get(['/api/board', '/board', '/'], async (req, res) => {
     res.json(memoryBoardData);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'DB Error', details: err.message, stack: err.stack });
+    res.status(500).json({ 
+      error: 'DB Error', 
+      details: err.message, 
+      resolvedUrl: maskConnectionString(connectionString),
+      stack: err.stack 
+    });
   }
 });
 
