@@ -107,7 +107,7 @@ app.get(['/api/board', '/board', '/'], async (req, res) => {
     res.json(memoryBoardData);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'DB Error' });
+    res.status(500).json({ error: 'DB Error', details: err.message, stack: err.stack });
   }
 });
 
