@@ -494,13 +494,9 @@ export default function App() {
         </div>
       </header>
 
-      {apiConnected ? (
-        <div className="notice" style={{ background: "#EEF2FF", color: "#3730A3", borderColor: "#C7D2FE" }}>
-          ⚡ Live Server Connected — Data synced with backend API
-        </div>
-      ) : (
-        <div className="notice" style={{ background: "#F0FDF4", color: "#166534", borderColor: "#BBF7D0" }}>
-          💾 Browser Storage Active — Cards saved locally in your browser
+      {!apiConnected && (
+        <div className="notice" style={{ background: "#FEF3C7", color: "#92400E", borderColor: "#FDE68A" }}>
+          ⚠️ Offline Mode — Syncing with local browser storage instead of database.
         </div>
       )}
 
