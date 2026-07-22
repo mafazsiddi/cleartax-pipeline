@@ -172,6 +172,7 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      let apiSuccess = false;
       // 1. Try API Server first
       try {
         const res = await fetch("/api/board");
@@ -182,15 +183,18 @@ export default function App() {
             setMembers(Array.isArray(data.members) ? data.members : SEED_MEMBERS);
             setApiConnected(true);
             setLoading(false);
-            return;
+            apiSuccess = true;
           }
         }
       } catch (e) {
-        // API server not reachable, fallback below
+        console.error("API server connection failed:", e);
       }
 
+      if (apiSuccess) return;
+
       // 2. Storage or seed fallback
-      if (!hasStore) {
+      const store = getStore();
+      if (!store) {
         if (alive) {
           setTasks(buildSeed());
           setMembers(SEED_MEMBERS);

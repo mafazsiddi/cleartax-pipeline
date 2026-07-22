@@ -18,6 +18,9 @@ let pool = null;
 if (usePostgres) {
   pool = new pg.Pool({
     connectionString: connectionString,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 2000,
+    max: 5,
     ssl: {
       rejectUnauthorized: false
     }
