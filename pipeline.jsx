@@ -151,6 +151,7 @@ function buildSeed() {
     figmaLink: t.figmaLink,
     stage: t.stage,
     createdAt: now + i,
+    assignedBy: "",
   }));
 }
 
@@ -927,6 +928,7 @@ export default function App() {
           initial={modalTask}
           defaultStage={modalStage}
           members={members}
+          session={session}
           onClose={() => setModalOpen(false)}
           onSave={(task) => {
             upsertTask(task);
@@ -1004,26 +1006,33 @@ function Card({ task, dragging, onEdit, onDragStart, onDragEnd }) {
             No date
           </span>
         )}
-        {task.assignee ? (
-          <span
-            className="avatar"
-            style={{ background: avatarColor(task.assignee) }}
-            title={task.assignee}
-          >
-            {initials(task.assignee)}
-          </span>
-        ) : (
-          <span className="avatar unassigned" title="Unassigned">
-            —
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {task.assignedBy && (
+            <span style={{ fontSize: "11px", color: "var(--ink-2)", opacity: 0.7 }} title={`Assigned by ${task.assignedBy}`}>
+              by {task.assignedBy.split("@")[0]}
+            </span>
+          )}
+          {task.assignee ? (
+            <span
+              className="avatar"
+              style={{ background: avatarColor(task.assignee) }}
+              title={task.assignee}
+            >
+              {initials(task.assignee)}
+            </span>
+          ) : (
+            <span className="avatar unassigned" title="Unassigned">
+              —
+            </span>
+          )}
+        </div>
       </div>
     </article>
   );
 }
 
 /* ---------------------------- TaskModal --------------------------- */
-function TaskModal({ initial, defaultStage, members, onClose, onSave, onDelete }) {
+function TaskModal({ initial, defaultStage, members, session, onClose, onSave, onDelete }) {
   const [title, setTitle] = useState(initial?.title || "");
   const [desc, setDesc] = useState(initial?.description || "");
   const [assignee, setAssignee] = useState(initial?.assignee || "");
@@ -1044,6 +1053,10 @@ function TaskModal({ initial, defaultStage, members, onClose, onSave, onDelete }
       setErr("Give the card a title so the team knows what it is.");
       return;
     }
+    const nextAssignedBy = (!initial)
+      ? (session?.email || "")
+      : (initial.assignee !== assignee ? (session?.email || "") : (initial.assignedBy || session?.email || ""));
+
     onSave({
       id: initial?.id || uid(),
       title: title.trim(),
@@ -1054,6 +1067,7 @@ function TaskModal({ initial, defaultStage, members, onClose, onSave, onDelete }
       figmaLink: figmaLink.trim(),
       stage,
       createdAt: initial?.createdAt || Date.now(),
+      assignedBy: nextAssignedBy,
     });
   };
 
@@ -1156,6 +1170,23 @@ function TaskModal({ initial, defaultStage, members, onClose, onSave, onDelete }
               placeholder="https://figma.com/…"
             />
           </label>
+          
+          {(initial?.assignedBy || session?.email) && (
+            <div style={{
+              marginTop: "16px",
+              fontSize: "12px",
+              color: "var(--ink-2)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontFamily: "var(--font-body)"
+            }}>
+              <span style={{ fontWeight: "600" }}>Assigned by:</span>
+              <span style={{ opacity: 0.8 }}>
+                {initial?.assignedBy === session?.email ? `${initial.assignedBy} (You)` : (initial?.assignedBy || session?.email)}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="modal-foot">

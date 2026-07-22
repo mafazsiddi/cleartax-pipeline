@@ -109,8 +109,12 @@ async function initPg() {
         "dueDate" VARCHAR(50),
         "figmaLink" TEXT,
         stage VARCHAR(100) NOT NULL,
-        "createdAt" BIGINT
+        "createdAt" BIGINT,
+        "assignedBy" VARCHAR(255)
       )
+    `);
+    await client.query(`
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "assignedBy" VARCHAR(255)
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS members (
@@ -151,9 +155,9 @@ async function initPg() {
     if (tasksRes.rowCount === 0) {
       for (const t of memoryBoardData.tasks) {
         await client.query(
-          `INSERT INTO tasks (id, title, description, assignee, priority, "dueDate", "figmaLink", stage, "createdAt")
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [t.id, t.title, t.description, t.assignee, t.priority, t.dueDate, t.figmaLink, t.stage, Date.now()]
+          `INSERT INTO tasks (id, title, description, assignee, priority, "dueDate", "figmaLink", stage, "createdAt", "assignedBy")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [t.id, t.title, t.description, t.assignee, t.priority, t.dueDate, t.figmaLink, t.stage, Date.now(), t.assignedBy || '']
         );
       }
     }
@@ -294,8 +298,8 @@ app.post(['/api/tasks', '/tasks'], async (req, res) => {
     if (usePostgres) {
       await initPg();
       await pool.query(
-        `INSERT INTO tasks (id, title, description, assignee, priority, "dueDate", "figmaLink", stage, "createdAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO tasks (id, title, description, assignee, priority, "dueDate", "figmaLink", stage, "createdAt", "assignedBy")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (id) DO UPDATE SET
            title = EXCLUDED.title,
            description = EXCLUDED.description,
@@ -303,7 +307,8 @@ app.post(['/api/tasks', '/tasks'], async (req, res) => {
            priority = EXCLUDED.priority,
            "dueDate" = EXCLUDED."dueDate",
            "figmaLink" = EXCLUDED."figmaLink",
-           stage = EXCLUDED.stage`,
+           stage = EXCLUDED.stage,
+           "assignedBy" = EXCLUDED."assignedBy"`,
         [
           task.id,
           task.title || '',
@@ -313,7 +318,8 @@ app.post(['/api/tasks', '/tasks'], async (req, res) => {
           task.dueDate || '',
           task.figmaLink || '',
           task.stage || 'backlog',
-          task.createdAt || Date.now()
+          task.createdAt || Date.now(),
+          task.assignedBy || ''
         ]
       );
       return res.json({ success: true, task });
