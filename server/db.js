@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.resolve(__dirname, '../pipeline.sqlite');
+const dbPath = path.resolve(__dirname, '../mira.sqlite');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -35,6 +35,15 @@ const all = (sql, params = []) =>
 const SEED_MEMBERS = [];
 const SEED_TASKS = [];
 
+// SQLite has no ADD COLUMN IF NOT EXISTS — ignore the "duplicate column" error.
+async function addColumn(table, definition) {
+  try {
+    await run(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  } catch (err) {
+    if (!/duplicate column name/i.test(err.message)) throw err;
+  }
+}
+
 export async function initDb() {
   await run(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -46,13 +55,35 @@ export async function initDb() {
       dueDate TEXT DEFAULT '',
       figmaLink TEXT DEFAULT '',
       stage TEXT NOT NULL DEFAULT 'backlog',
-      createdAt INTEGER NOT NULL
+      createdAt INTEGER NOT NULL,
+      assignedBy TEXT DEFAULT ''
+    )
+  `);
+  await addColumn('tasks', `assignedBy TEXT DEFAULT ''`);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS members (
+      name TEXT PRIMARY KEY,
+      email TEXT DEFAULT ''
+    )
+  `);
+  await addColumn('members', `email TEXT DEFAULT ''`);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS auth_otps (
+      email TEXT PRIMARY KEY,
+      otp TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT 0
     )
   `);
 
   await run(`
-    CREATE TABLE IF NOT EXISTS members (
-      name TEXT PRIMARY KEY
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      token TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
     )
   `);
 
@@ -82,17 +113,33 @@ export async function initDb() {
 
 export async function getBoard() {
   const tasks = await all(`SELECT * FROM tasks ORDER BY createdAt ASC`);
-  const memberRows = await all(`SELECT name FROM members ORDER BY name ASC`);
+  const memberRows = await all(`SELECT name, email FROM members ORDER BY name ASC`);
   return {
     tasks,
     members: memberRows.map((m) => m.name),
+    memberEmails: Object.fromEntries(memberRows.filter((m) => m.email).map((m) => [m.name, m.email])),
   };
+}
+
+export async function getTaskAssignee(id) {
+  const rows = await all(`SELECT assignee FROM tasks WHERE id = ?`, [id]);
+  return rows[0]?.assignee || '';
+}
+
+export async function getMemberEmail(name) {
+  if (!name) return '';
+  const rows = await all(`SELECT email FROM members WHERE name = ?`, [name]);
+  return rows[0]?.email || '';
+}
+
+export async function listMembers() {
+  return all(`SELECT name, email FROM members ORDER BY name ASC`);
 }
 
 export async function upsertTask(task) {
   await run(
-    `INSERT INTO tasks (id, title, description, assignee, priority, dueDate, figmaLink, stage, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO tasks (id, title, description, assignee, priority, dueDate, figmaLink, stage, createdAt, assignedBy)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        title = excluded.title,
        description = excluded.description,
@@ -100,7 +147,8 @@ export async function upsertTask(task) {
        priority = excluded.priority,
        dueDate = excluded.dueDate,
        figmaLink = excluded.figmaLink,
-       stage = excluded.stage`,
+       stage = excluded.stage,
+       assignedBy = excluded.assignedBy`,
     [
       task.id,
       task.title || '',
@@ -111,8 +159,52 @@ export async function upsertTask(task) {
       task.figmaLink || '',
       task.stage || 'backlog',
       task.createdAt || Date.now(),
+      task.assignedBy || '',
     ]
   );
+}
+
+/* ------------------------------ auth ------------------------------ */
+
+export async function saveOtp(email, otp, expiresAt, createdAt) {
+  await run(
+    `INSERT INTO auth_otps (email, otp, expires_at, attempts, created_at)
+     VALUES (?, ?, ?, 0, ?)
+     ON CONFLICT(email) DO UPDATE SET
+       otp = excluded.otp,
+       expires_at = excluded.expires_at,
+       attempts = 0,
+       created_at = excluded.created_at`,
+    [email, otp, expiresAt, createdAt]
+  );
+}
+
+export async function getOtp(email) {
+  const rows = await all(`SELECT * FROM auth_otps WHERE email = ?`, [email]);
+  return rows[0] || null;
+}
+
+export async function bumpOtpAttempts(email) {
+  await run(`UPDATE auth_otps SET attempts = attempts + 1 WHERE email = ?`, [email]);
+}
+
+export async function deleteOtp(email) {
+  await run(`DELETE FROM auth_otps WHERE email = ?`, [email]);
+}
+
+export async function saveSession(token, email, expiresAt) {
+  await run(`INSERT INTO user_sessions (token, email, expires_at) VALUES (?, ?, ?)`, [
+    token, email, expiresAt,
+  ]);
+}
+
+export async function getSession(token) {
+  const rows = await all(`SELECT * FROM user_sessions WHERE token = ?`, [token]);
+  return rows[0] || null;
+}
+
+export async function deleteSession(token) {
+  await run(`DELETE FROM user_sessions WHERE token = ?`, [token]);
 }
 
 export async function updateTaskStage(id, stage) {
@@ -123,8 +215,12 @@ export async function deleteTask(id) {
   await run(`DELETE FROM tasks WHERE id = ?`, [id]);
 }
 
-export async function addMember(name) {
-  await run(`INSERT OR IGNORE INTO members (name) VALUES (?)`, [name]);
+export async function addMember(name, email = '') {
+  await run(
+    `INSERT INTO members (name, email) VALUES (?, ?)
+     ON CONFLICT(name) DO UPDATE SET email = COALESCE(NULLIF(excluded.email, ''), members.email)`,
+    [name, email]
+  );
 }
 
 export async function removeMember(name) {

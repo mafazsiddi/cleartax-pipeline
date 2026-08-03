@@ -1,13 +1,14 @@
 {
-  "name": "pipeline-kanban",
+  "name": "mira-kanban",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"cyan,magenta\" \"npm run server\" \"vite\"",
-    "start": "node server/index.js",
-    "server": "node server/index.js",
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "server": "node --env-file-if-exists=.env server/index.js",
     "client": "vite",
+    "gmail-auth": "node --env-file-if-exists=.env scripts/gmail-auth.js",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -17,6 +18,7 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "lucide-react": "^0.344.0",
+    "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

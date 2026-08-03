@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'crypto';
 import pg from 'pg';
 import { createClient } from '@supabase/supabase-js';
+import { sendMail, mailEnabled, mailConfig, consoleOtpAllowed, otpEmail, assignmentEmail } from '../lib/mail.js';
+import { resolveMemberName } from '../lib/members.js';
 
 const app = express();
 app.use(cors());
@@ -89,8 +92,11 @@ if (usePostgres) {
 // Memory fallback store (used if process.env.DATABASE_URL is not set)
 let memoryBoardData = {
   members: [],
+  memberEmails: {},
   tasks: [],
-  invites: {}
+  invites: {},
+  otps: {},
+  sessions: {}
 };
 
 // Auto initialize tables if using Postgres
@@ -122,11 +128,20 @@ async function initPg() {
       )
     `);
     await client.query(`
+      ALTER TABLE members ADD COLUMN IF NOT EXISTS email VARCHAR(255)
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS auth_otps (
         email VARCHAR(255) PRIMARY KEY,
         otp VARCHAR(10) NOT NULL,
         expires_at BIGINT NOT NULL
       )
+    `);
+    await client.query(`
+      ALTER TABLE auth_otps ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0
+    `);
+    await client.query(`
+      ALTER TABLE auth_otps ADD COLUMN IF NOT EXISTS created_at BIGINT NOT NULL DEFAULT 0
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
@@ -214,36 +229,218 @@ const authenticateUser = async (req, res, next) => {
 
 app.use(authenticateUser);
 
-app.post('/api/auth/authorize-email', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
+/* ------------------------------ auth ------------------------------ */
 
-  const trimmed = email.trim().toLowerCase();
-  const domain = trimmed.split('@')[1];
-  const allowed = ['clear.in', 'cleartax.in', 'cleartax.com'];
-  if (!domain || !allowed.includes(domain)) {
+const ALLOWED_DOMAINS = ['clear.in', 'cleartax.in', 'cleartax.com'];
+const OTP_TTL_MS = 10 * 60 * 1000;   // code is valid for 10 minutes
+const OTP_RESEND_MS = 30 * 1000;     // don't re-send within 30s of the last code
+const OTP_MAX_ATTEMPTS = 5;
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function domainAllowed(email) {
+  const domain = email.split('@')[1];
+  return !!domain && ALLOWED_DOMAINS.includes(domain);
+}
+
+function generateOtp() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Put whoever just signed in on the board, reusing their existing row when
+ * one already holds the address. Returns the member name, or '' if the
+ * write failed — a member problem must never block a valid login.
+ */
+async function ensureMemberForEmail(email) {
+  try {
+    let existing;
+    if (usePostgres) {
+      await initPg();
+      existing = (await pool.query('SELECT name, email FROM members')).rows;
+    } else {
+      existing = memoryBoardData.members.map((name) => ({
+        name,
+        email: memoryBoardData.memberEmails[name] || '',
+      }));
+    }
+
+    const { name, isNew } = resolveMemberName(email, existing);
+    if (!name) return '';
+
+    if (usePostgres) {
+      await pool.query(
+        `INSERT INTO members (name, email) VALUES ($1, $2)
+         ON CONFLICT (name) DO UPDATE SET email = COALESCE(NULLIF(EXCLUDED.email, ''), members.email)`,
+        [name, email]
+      );
+    } else {
+      if (!memoryBoardData.members.includes(name)) memoryBoardData.members.push(name);
+      if (!memoryBoardData.memberEmails[name]) memoryBoardData.memberEmails[name] = email;
+    }
+
+    if (isNew) console.log(`[auth] Added ${name} <${email}> to the team`);
+    return name;
+  } catch (err) {
+    console.error('[auth] Could not add member on login:', err.message);
+    return '';
+  }
+}
+
+async function createSession(email) {
+  const token = generateToken();
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+  if (usePostgres) {
+    await pool.query(
+      `INSERT INTO user_sessions (token, email, expires_at) VALUES ($1, $2, $3)`,
+      [token, email, expiresAt]
+    );
+  } else {
+    memoryBoardData.sessions[token] = { email, expiresAt };
+  }
+  return { token, email };
+}
+
+app.post('/api/auth/request-otp', async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  if (!domainAllowed(email)) {
     return res.status(403).json({ error: 'Please enter correct email address.' });
   }
 
   try {
-    const sessionToken = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
-    const sessionExpiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+    if (usePostgres) await initPg();
 
-    if (usePostgres) {
-      await initPg();
-      await pool.query(
-        `INSERT INTO user_sessions (token, email, expires_at) VALUES ($1, $2, $3)`,
-        [sessionToken, trimmed, sessionExpiresAt]
-      );
-    } else {
-      memoryBoardData.sessions = memoryBoardData.sessions || {};
-      memoryBoardData.sessions[sessionToken] = { email: trimmed, expiresAt: sessionExpiresAt };
+    const now = Date.now();
+    const existing = usePostgres
+      ? (await pool.query('SELECT * FROM auth_otps WHERE email = $1', [email])).rows[0]
+      : memoryBoardData.otps[email];
+
+    const lastSentAt = Number(existing?.created_at ?? existing?.createdAt ?? 0);
+    if (lastSentAt && now - lastSentAt < OTP_RESEND_MS) {
+      const wait = Math.ceil((OTP_RESEND_MS - (now - lastSentAt)) / 1000);
+      return res.status(429).json({ error: `Please wait ${wait}s before requesting another code.` });
     }
 
-    return res.json({ token: sessionToken, email: trimmed });
+    const code = generateOtp();
+    const expiresAt = now + OTP_TTL_MS;
+
+    if (usePostgres) {
+      await pool.query(
+        `INSERT INTO auth_otps (email, otp, expires_at, attempts, created_at)
+         VALUES ($1, $2, $3, 0, $4)
+         ON CONFLICT (email) DO UPDATE SET
+           otp = EXCLUDED.otp,
+           expires_at = EXCLUDED.expires_at,
+           attempts = 0,
+           created_at = EXCLUDED.created_at`,
+        [email, code, expiresAt, now]
+      );
+    } else {
+      memoryBoardData.otps[email] = { otp: code, expires_at: expiresAt, attempts: 0, created_at: now };
+    }
+
+    const tpl = otpEmail({ code, minutes: Math.round(OTP_TTL_MS / 60000) });
+    const result = await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+
+    if (!result.sent && !mailEnabled()) {
+      // No mail provider configured — surface the code in the server log so a
+      // local/dev deployment is still usable, but never in the HTTP response.
+      console.warn(`[auth] Mail disabled. OTP for ${email} is ${code}`);
+      if (consoleOtpAllowed()) {
+        // Advance the sign-in flow; the code stays in the log, never in the body.
+        return res.json({
+          success: true,
+          email,
+          devConsole: true,
+          expiresInSeconds: Math.round(OTP_TTL_MS / 1000),
+        });
+      }
+      return res.status(503).json({
+        error: 'Email delivery is not configured yet. Set SMTP_HOST/SMTP_USER/SMTP_PASS to receive codes.'
+      });
+    }
+    if (!result.sent) {
+      // Nothing was delivered, so don't let the stored row hold the caller in
+      // the resend throttle for a code they never received.
+      if (usePostgres) {
+        await pool.query(`DELETE FROM auth_otps WHERE email = $1`, [email]);
+      } else {
+        delete memoryBoardData.otps[email];
+      }
+      return res.status(502).json({ error: "Couldn't send the code. Please try again in a moment." });
+    }
+
+    return res.json({ success: true, email, expiresInSeconds: Math.round(OTP_TTL_MS / 1000) });
   } catch (err) {
-    console.error('Authorize email error:', err);
-    return res.status(500).json({ error: 'Server error authorizing email' });
+    console.error('Request OTP error:', err);
+    return res.status(500).json({ error: 'Server error sending the code' });
+  }
+});
+
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const code = String(req.body?.otp || '').trim();
+
+  if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+  if (!domainAllowed(email)) {
+    return res.status(403).json({ error: 'Please enter correct email address.' });
+  }
+
+  try {
+    if (usePostgres) await initPg();
+
+    const record = usePostgres
+      ? (await pool.query('SELECT * FROM auth_otps WHERE email = $1', [email])).rows[0]
+      : memoryBoardData.otps[email];
+
+    if (!record) {
+      return res.status(400).json({ error: 'Request a new code to continue.' });
+    }
+    if (Date.now() > Number(record.expires_at)) {
+      if (usePostgres) await pool.query('DELETE FROM auth_otps WHERE email = $1', [email]);
+      else delete memoryBoardData.otps[email];
+      return res.status(400).json({ error: 'That code has expired. Request a new one.' });
+    }
+    if (Number(record.attempts) >= OTP_MAX_ATTEMPTS) {
+      if (usePostgres) await pool.query('DELETE FROM auth_otps WHERE email = $1', [email]);
+      else delete memoryBoardData.otps[email];
+      return res.status(429).json({ error: 'Too many incorrect attempts. Request a new code.' });
+    }
+
+    const expected = Buffer.from(String(record.otp));
+    const given = Buffer.from(code);
+    const matches = expected.length === given.length && crypto.timingSafeEqual(expected, given);
+
+    if (!matches) {
+      if (usePostgres) {
+        await pool.query('UPDATE auth_otps SET attempts = attempts + 1 WHERE email = $1', [email]);
+      } else {
+        memoryBoardData.otps[email].attempts = Number(record.attempts) + 1;
+      }
+      const left = OTP_MAX_ATTEMPTS - (Number(record.attempts) + 1);
+      return res.status(401).json({
+        error: left > 0 ? `Incorrect code. ${left} attempt${left === 1 ? '' : 's'} left.` : 'Incorrect code. Request a new one.'
+      });
+    }
+
+    // Correct — burn the code and hand out a session.
+    if (usePostgres) await pool.query('DELETE FROM auth_otps WHERE email = $1', [email]);
+    else delete memoryBoardData.otps[email];
+
+    const member = await ensureMemberForEmail(email);
+    const session = await createSession(email);
+    return res.json({ ...session, member });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    return res.status(500).json({ error: 'Server error verifying the code' });
   }
 });
 
@@ -272,13 +469,18 @@ app.get(['/api/board', '/board', '/'], async (req, res) => {
     if (usePostgres) {
       await initPg();
       const tasksRes = await pool.query('SELECT * FROM tasks ORDER BY "createdAt" ASC');
-      const membersRes = await pool.query('SELECT name FROM members ORDER BY name ASC');
+      const membersRes = await pool.query('SELECT name, email FROM members ORDER BY name ASC');
       return res.json({
         tasks: tasksRes.rows,
-        members: membersRes.rows.map(r => r.name)
+        members: membersRes.rows.map(r => r.name),
+        memberEmails: Object.fromEntries(membersRes.rows.filter(r => r.email).map(r => [r.name, r.email]))
       });
     }
-    res.json(memoryBoardData);
+    res.json({
+      tasks: memoryBoardData.tasks,
+      members: memoryBoardData.members,
+      memberEmails: memoryBoardData.memberEmails
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ 
@@ -290,13 +492,61 @@ app.get(['/api/board', '/board', '/'], async (req, res) => {
   }
 });
 
+/**
+ * Look up a teammate's email address. Returns '' when we don't have one.
+ */
+async function memberEmail(name) {
+  if (!name) return '';
+  if (usePostgres) {
+    const r = await pool.query('SELECT email FROM members WHERE name = $1', [name]);
+    return r.rows[0]?.email || '';
+  }
+  return memoryBoardData.memberEmails[name] || '';
+}
+
+/**
+ * Notify a teammate that a card is now theirs. Only fires when the assignee
+ * actually changed, and never throws — saving the card matters more than the
+ * email going out.
+ */
+async function notifyAssignment(task, previousAssignee, req) {
+  try {
+    const assignee = (task.assignee || '').trim();
+    if (!assignee || assignee === (previousAssignee || '').trim()) return;
+    if (!mailEnabled()) return;
+
+    const to = await memberEmail(assignee);
+    if (!to) {
+      console.warn(`[mail] No email on file for "${assignee}" — assignment notice not sent.`);
+      return;
+    }
+
+    const { appUrl } = mailConfig();
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const link = appUrl || (host ? `${proto}://${host}` : '');
+
+    const tpl = assignmentEmail({
+      task,
+      assignee,
+      assignedBy: task.assignedBy || '',
+      appUrl: link,
+    });
+    await sendMail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text });
+  } catch (err) {
+    console.error('[mail] Assignment notification failed:', err.message);
+  }
+}
+
 app.post(['/api/tasks', '/tasks'], async (req, res) => {
   try {
     const task = req.body;
     if (!task || !task.id) return res.status(400).json({ error: 'Invalid task' });
-    
+
     if (usePostgres) {
       await initPg();
+      const prevRes = await pool.query('SELECT assignee FROM tasks WHERE id = $1', [task.id]);
+      const previousAssignee = prevRes.rows[0]?.assignee || '';
       await pool.query(
         `INSERT INTO tasks (id, title, description, assignee, priority, "dueDate", "figmaLink", stage, "createdAt", "assignedBy")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -322,12 +572,15 @@ app.post(['/api/tasks', '/tasks'], async (req, res) => {
           task.assignedBy || ''
         ]
       );
+      await notifyAssignment(task, previousAssignee, req);
       return res.json({ success: true, task });
     }
 
     const idx = memoryBoardData.tasks.findIndex((t) => t.id === task.id);
+    const previousAssignee = idx >= 0 ? memoryBoardData.tasks[idx].assignee || '' : '';
     if (idx >= 0) memoryBoardData.tasks[idx] = task;
     else memoryBoardData.tasks.push(task);
+    await notifyAssignment(task, previousAssignee, req);
     res.json({ success: true, task });
   } catch (err) {
     console.error(err);
@@ -373,16 +626,28 @@ app.post(['/api/members', '/members'], async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' });
-    
+
+    const trimmedName = name.trim();
+    const email = normalizeEmail(req.body?.email);
+    if (email && !email.includes('@')) {
+      return res.status(400).json({ error: 'Enter a valid email address' });
+    }
+
     if (usePostgres) {
       await initPg();
-      await pool.query('INSERT INTO members (name) VALUES ($1) ON CONFLICT DO NOTHING', [name.trim()]);
-      return res.json({ success: true });
+      // An empty email must not wipe an address already on file.
+      await pool.query(
+        `INSERT INTO members (name, email) VALUES ($1, $2)
+         ON CONFLICT (name) DO UPDATE SET email = COALESCE(NULLIF(EXCLUDED.email, ''), members.email)`,
+        [trimmedName, email]
+      );
+      return res.json({ success: true, name: trimmedName, email });
     }
-    if (!memoryBoardData.members.includes(name.trim())) {
-      memoryBoardData.members.push(name.trim());
+    if (!memoryBoardData.members.includes(trimmedName)) {
+      memoryBoardData.members.push(trimmedName);
     }
-    res.json({ success: true });
+    if (email) memoryBoardData.memberEmails[trimmedName] = email;
+    res.json({ success: true, name: trimmedName, email });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'DB Error' });
@@ -399,6 +664,7 @@ app.delete(['/api/members/:name', '/members/:name'], async (req, res) => {
       return res.json({ success: true });
     }
     memoryBoardData.members = memoryBoardData.members.filter((m) => m !== name);
+    delete memoryBoardData.memberEmails[name];
     memoryBoardData.tasks.forEach((t) => {
       if (t.assignee === name) t.assignee = '';
     });

@@ -11,7 +11,7 @@ const supabaseAnonKey = import.meta.env.NEXT_PUBLIC_cleartaxpipeline_SUPABASE_PU
 const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 /* ------------------------------------------------------------------ *
- * Pipeline — an internal board for a page design + development team.
+ * Mira — an internal board for a page design + development team.
  * Data is shared across everyone who opens this tool (window.storage,
  * shared=true), so the whole team sees and edits the same board.
  * ------------------------------------------------------------------ */
@@ -40,9 +40,10 @@ const AVATAR_COLORS = [
 ];
 
 /* ----------------------------- storage ---------------------------- */
-const K_TASKS = "pipeline:tasks:v1";
-const K_MEMBERS = "pipeline:members:v1";
-const K_INIT = "pipeline:initialized:v1";
+const K_TASKS = "mira:tasks:v1";
+const K_MEMBERS = "mira:members:v1";
+const K_INIT = "mira:initialized:v1";
+const K_SESSION = "mira_session";
 
 function getStore() {
   if (typeof window !== "undefined" && window.storage && typeof window.storage.get === "function") {
@@ -157,9 +158,14 @@ function buildSeed() {
 
 /* =================================================================== */
 function LoginScreen({ onLoginSuccess }) {
+  const [step, setStep] = useState("email"); // "email" | "otp"
   const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+  const otpRef = useRef(null);
 
   const validateEmailDomain = (emailStr) => {
     const domain = emailStr.trim().split("@")[1];
@@ -168,9 +174,40 @@ function LoginScreen({ onLoginSuccess }) {
     return allowed.includes(domain.toLowerCase());
   };
 
-  const handleAuthorize = async (e) => {
-    e.preventDefault();
+  /* countdown that gates the "Resend code" link */
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
+
+  useEffect(() => {
+    if (step === "otp") {
+      const id = setTimeout(() => otpRef.current?.focus(), 60);
+      return () => clearTimeout(id);
+    }
+  }, [step]);
+
+  const post = async (url, body) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Server error (${res.status}): ${text.slice(0, 150)}`);
+    }
+    return { res, data };
+  };
+
+  const requestCode = async (e) => {
+    if (e) e.preventDefault();
     setError("");
+    setNotice("");
     const trimmed = email.trim();
     if (!trimmed) return setError("Please enter your email address.");
     if (!validateEmailDomain(trimmed)) {
@@ -179,30 +216,95 @@ function LoginScreen({ onLoginSuccess }) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/authorize-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
-      });
-      let data = {};
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        const text = await res.text();
-        setError(`Server error (${res.status}): ${text.slice(0, 150)}`);
-        return;
-      }
+      const { res, data } = await post("/api/auth/request-otp", { email: trimmed });
       if (!res.ok) {
-        setError(data.error || "Failed to authorize email.");
+        setError(data.error || "Couldn't send the code.");
       } else {
-        localStorage.setItem("pipeline_session", JSON.stringify(data));
-        onLoginSuccess(data);
+        setStep("otp");
+        setOtp("");
+        setResendIn(30);
+        setNotice(
+          data.devConsole
+            ? "Email delivery is off — your code is printed in the server console."
+            : `We sent a 6-digit code to ${trimmed}.`
+        );
       }
     } catch (err) {
-      setError(`Network/unexpected error: ${err.message}`);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const verifyCode = async (e) => {
+    e.preventDefault();
+    setError("");
+    const code = otp.trim();
+    if (code.length !== 6) return setError("Enter the 6-digit code from your email.");
+
+    setLoading(true);
+    try {
+      const { res, data } = await post("/api/auth/verify-otp", { email: email.trim(), otp: code });
+      if (!res.ok) {
+        setError(data.error || "That code didn't work.");
+      } else {
+        localStorage.setItem(K_SESSION, JSON.stringify(data));
+        onLoginSuccess(data);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    border: "1px solid #E6E9F0",
+    background: "#FBFBFD",
+    color: "#1B2333",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+    transition: "all 0.15s ease",
+  };
+  const focusIn = (e) => {
+    e.target.style.borderColor = "#4338CA";
+    e.target.style.boxShadow = "0 0 0 3px #EEEDFB";
+    e.target.style.background = "#ffffff";
+  };
+  const blurOut = (e) => {
+    e.target.style.borderColor = "#E6E9F0";
+    e.target.style.boxShadow = "none";
+    e.target.style.background = "#FBFBFD";
+  };
+  const labelStyle = {
+    display: "block",
+    fontSize: "11.5px",
+    fontWeight: "600",
+    color: "#586074",
+    marginBottom: "8px",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+    fontFamily: "'Inter', sans-serif",
+  };
+  const buttonStyle = {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "none",
+    background: "#4338CA",
+    color: "white",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: loading ? "not-allowed" : "pointer",
+    transition: "all 0.14s ease",
+    opacity: loading ? 0.7 : 1,
+    fontFamily: "'Inter', sans-serif",
+    boxShadow: "0 1px 2px rgba(20,28,48,.05)",
   };
 
   return (
@@ -248,7 +350,7 @@ function LoginScreen({ onLoginSuccess }) {
           letterSpacing: "-0.5px",
           fontFamily: "'Space Grotesk', sans-serif",
         }}>
-          Pipeline
+          Mira
         </h2>
         <p style={{
           fontSize: "13.5px",
@@ -258,8 +360,29 @@ function LoginScreen({ onLoginSuccess }) {
           fontWeight: "500",
           fontFamily: "'Inter', sans-serif",
         }}>
-          Design &amp; development board
+          {step === "email" ? "Design & development board" : "Check your inbox for the code"}
         </p>
+
+        {notice && !error && (
+          <div style={{
+            background: "#EEF6FF",
+            border: "1px solid #CFE3FB",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            color: "#1D4ED8",
+            fontSize: "12.5px",
+            textAlign: "left",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "8px",
+            fontWeight: "500",
+            fontFamily: "'Inter', sans-serif",
+          }}>
+            <Check size={15} style={{ flexShrink: 0, marginTop: "2px" }} />
+            <span>{notice}</span>
+          </div>
+        )}
 
         {error && (
           <div style={{
@@ -282,80 +405,112 @@ function LoginScreen({ onLoginSuccess }) {
           </div>
         )}
 
-        <form onSubmit={handleAuthorize}>
-          <div style={{ textAlign: "left", marginBottom: "20px" }}>
-            <label style={{
-              display: "block",
-              fontSize: "11.5px",
-              fontWeight: "600",
-              color: "#586074",
-              marginBottom: "8px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
+        {step === "email" ? (
+          <form onSubmit={requestCode}>
+            <div style={{ textAlign: "left", marginBottom: "20px" }}>
+              <label style={labelStyle}>Email Address</label>
+              <input
+                type="email"
+                placeholder="name@clear.in"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                style={inputStyle}
+                onFocus={focusIn}
+                onBlur={blurOut}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={buttonStyle}
+              onMouseOver={(e) => { if (!loading) e.target.style.background = "#5B50E6"; }}
+              onMouseOut={(e) => { if (!loading) e.target.style.background = "#4338CA"; }}
+            >
+              {loading ? "Sending code..." : "Send sign-in code"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={verifyCode}>
+            <div style={{ textAlign: "left", marginBottom: "20px" }}>
+              <label style={labelStyle}>6-Digit Code</label>
+              <input
+                ref={otpRef}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="000000"
+                value={otp}
+                onChange={(e) => {
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  if (error) setError("");
+                }}
+                required
+                style={{
+                  ...inputStyle,
+                  textAlign: "center",
+                  fontSize: "22px",
+                  fontWeight: "600",
+                  letterSpacing: "8px",
+                  padding: "12px 14px",
+                }}
+                onFocus={focusIn}
+                onBlur={blurOut}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={buttonStyle}
+              onMouseOver={(e) => { if (!loading) e.target.style.background = "#5B50E6"; }}
+              onMouseOut={(e) => { if (!loading) e.target.style.background = "#4338CA"; }}
+            >
+              {loading ? "Verifying..." : "Access Board"}
+            </button>
+
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "16px",
+              fontSize: "12.5px",
               fontFamily: "'Inter', sans-serif",
             }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: "10px",
-                border: "1px solid #E6E9F0",
-                background: "#FBFBFD",
-                color: "#1B2333",
-                fontSize: "14px",
-                outline: "none",
-                boxSizing: "border-box",
-                fontFamily: "'Inter', sans-serif",
-                transition: "all 0.15s ease",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#4338CA";
-                e.target.style.boxShadow = "0 0 0 3px #EEEDFB";
-                e.target.style.background = "#ffffff";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#E6E9F0";
-                e.target.style.boxShadow = "none";
-                e.target.style.background = "#FBFBFD";
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "10px",
-              border: "none",
-              background: "#4338CA",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: "600",
-              cursor: loading ? "not-allowed" : "pointer",
-              transition: "all 0.14s ease",
-              opacity: loading ? 0.7 : 1,
-              fontFamily: "'Inter', sans-serif",
-              boxShadow: "0 1px 2px rgba(20,28,48,.05)",
-            }}
-            onMouseOver={(e) => {
-              if (!loading) e.target.style.background = "#5B50E6";
-            }}
-            onMouseOut={(e) => {
-              if (!loading) e.target.style.background = "#4338CA";
-            }}
-          >
-            {loading ? "Verifying..." : "Access Board"}
-          </button>
-        </form>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("email");
+                  setError("");
+                  setNotice("");
+                  setOtp("");
+                }}
+                style={{
+                  background: "none", border: "none", padding: 0,
+                  color: "#586074", cursor: "pointer", fontWeight: "500", fontSize: "12.5px",
+                }}
+              >
+                ← Use a different email
+              </button>
+              <button
+                type="button"
+                disabled={loading || resendIn > 0}
+                onClick={() => requestCode()}
+                style={{
+                  background: "none", border: "none", padding: 0,
+                  color: resendIn > 0 ? "#A3AAB8" : "#4338CA",
+                  cursor: resendIn > 0 ? "default" : "pointer",
+                  fontWeight: "600", fontSize: "12.5px",
+                }}
+              >
+                {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -364,6 +519,7 @@ function LoginScreen({ onLoginSuccess }) {
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
+  const [memberEmails, setMemberEmails] = useState({});
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -383,41 +539,15 @@ export default function App() {
   const [apiConnected, setApiConnected] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const params = new URLSearchParams(window.location.search);
-      const emailParam = params.get("email");
-      const tokenParam = params.get("token");
-
-      if (emailParam && tokenParam) {
-        try {
-          const res = await fetch("/api/auth/verify-token", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailParam, token: tokenParam })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem("pipeline_session", JSON.stringify(data));
-            setSession(data);
-            window.history.replaceState({}, document.title, window.location.pathname);
-            setAuthLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Magic link verification failed:", e);
-        }
+    const stored = localStorage.getItem(K_SESSION);
+    if (stored) {
+      try {
+        setSession(JSON.parse(stored));
+      } catch (e) {
+        localStorage.removeItem(K_SESSION);
       }
-
-      const stored = localStorage.getItem("pipeline_session");
-      if (stored) {
-        try {
-          setSession(JSON.parse(stored));
-        } catch (e) {
-          localStorage.removeItem("pipeline_session");
-        }
-      }
-      setAuthLoading(false);
-    })();
+    }
+    setAuthLoading(false);
   }, []);
 
   const handleLogout = async () => {
@@ -432,7 +562,7 @@ export default function App() {
     } catch (e) {
       console.error("Logout error", e);
     }
-    localStorage.removeItem("pipeline_session");
+    localStorage.removeItem(K_SESSION);
     setSession(null);
   };
 
@@ -454,11 +584,21 @@ export default function App() {
           headers["Authorization"] = `Bearer ${session.token}`;
         }
         const res = await fetch("/api/board", { headers });
+        if (res.status === 401) {
+          // Session expired or revoked — drop it and show the sign-in screen.
+          localStorage.removeItem(K_SESSION);
+          if (alive) {
+            setSession(null);
+            setLoading(false);
+          }
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (alive && data && Array.isArray(data.tasks)) {
             setTasks(data.tasks);
             setMembers(Array.isArray(data.members) ? data.members : SEED_MEMBERS);
+            setMemberEmails(data.memberEmails || {});
             setApiConnected(true);
             setLoading(false);
             apiSuccess = true;
@@ -520,6 +660,11 @@ export default function App() {
           headers["Authorization"] = `Bearer ${session.token}`;
         }
         const res = await fetch("/api/board", { headers });
+        if (res.status === 401) {
+          localStorage.removeItem(K_SESSION);
+          setSession(null);
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data.tasks)) {
@@ -535,6 +680,10 @@ export default function App() {
                 return nextM;
               }
               return prev;
+            });
+            setMemberEmails(prev => {
+              const nextE = data.memberEmails || {};
+              return JSON.stringify(prev) !== JSON.stringify(nextE) ? nextE : prev;
             });
           }
         }
@@ -612,10 +761,17 @@ export default function App() {
     }
   };
 
-  const addMember = async (name) => {
+  const addMember = async (name, email = "") => {
     const n = name.trim();
-    if (!n || members.some((m) => m.toLowerCase() === n.toLowerCase())) return;
-    persistMembers([...members, n]);
+    const e = email.trim().toLowerCase();
+    if (!n) return;
+
+    const existing = members.find((m) => m.toLowerCase() === n.toLowerCase());
+    // A repeat name with a new email updates the address rather than being ignored.
+    if (existing && !e) return;
+    if (!existing) persistMembers([...members, n]);
+    if (e) setMemberEmails((prev) => ({ ...prev, [existing || n]: e }));
+
     if (apiConnected) {
       try {
         const headers = { "Content-Type": "application/json" };
@@ -625,16 +781,21 @@ export default function App() {
         await fetch("/api/members", {
           method: "POST",
           headers,
-          body: JSON.stringify({ name: n }),
+          body: JSON.stringify({ name: existing || n, email: e }),
         });
-      } catch (e) {
-        console.error("Failed to add member in backend", e);
+      } catch (err) {
+        console.error("Failed to add member in backend", err);
       }
     }
   };
 
   const removeMember = async (name) => {
     persistMembers(members.filter((m) => m !== name));
+    setMemberEmails((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
     persistTasks(tasks.map((t) => (t.assignee === name ? { ...t, assignee: "" } : t)));
     if (apiConnected) {
       try {
@@ -944,6 +1105,7 @@ export default function App() {
       {teamOpen && (
         <TeamModal
           members={members}
+          memberEmails={memberEmails}
           tasks={tasks}
           onAdd={addMember}
           onRemove={removeMember}
@@ -1210,12 +1372,21 @@ function TaskModal({ initial, defaultStage, members, session, onClose, onSave, o
   );
 }
 
-function TeamModal({ members, tasks, onAdd, onRemove, onClear, onClose }) {
+function TeamModal({ members, memberEmails, tasks, onAdd, onRemove, onClear, onClose }) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [err, setErr] = useState("");
   const count = (m) => tasks.filter((t) => t.assignee === m).length;
+
   const add = () => {
-    onAdd(name);
+    const n = name.trim();
+    const e = email.trim();
+    if (!n) return setErr("Enter a name.");
+    if (e && !/^\S+@\S+\.\S+$/.test(e)) return setErr("That doesn't look like a valid email address.");
+    onAdd(n, e);
     setName("");
+    setEmail("");
+    setErr("");
   };
   return (
     <div className="overlay" onMouseDown={onClose}>
@@ -1232,14 +1403,36 @@ function TeamModal({ members, tasks, onAdd, onRemove, onClear, onClose }) {
             <input
               className="in"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (err) setErr("");
+              }}
               onKeyDown={(e) => e.key === "Enter" && add()}
-              placeholder="Add a teammate's name"
+              placeholder="Teammate's name"
+            />
+            <input
+              className="in"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (err) setErr("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && add()}
+              placeholder="name@clear.in"
             />
             <button className="btn primary" onClick={add}>
               <UserPlus size={15} /> Add
             </button>
           </div>
+          {err ? (
+            <p className="err">{err}</p>
+          ) : (
+            <p className="hint">
+              Teammates with an email on file get notified when a card is assigned to them.
+              Re-adding an existing name updates their email.
+            </p>
+          )}
 
           <ul className="member-list">
             {members.length === 0 && <li className="empty-row">No teammates yet.</li>}
@@ -1248,7 +1441,14 @@ function TeamModal({ members, tasks, onAdd, onRemove, onClear, onClose }) {
                 <span className="avatar sm" style={{ background: avatarColor(m) }}>
                   {initials(m)}
                 </span>
-                <span className="member-name">{m}</span>
+                <span className="member-block">
+                  <span className="member-name">{m}</span>
+                  {memberEmails?.[m] ? (
+                    <span className="member-email">{memberEmails[m]}</span>
+                  ) : (
+                    <span className="member-email muted">No email — won't be notified</span>
+                  )}
+                </span>
                 <span className="member-count">{count(m)} cards</span>
                 <button
                   className="icon-btn small"
@@ -1474,13 +1674,17 @@ const CSS = `
 .foot-right{display:flex;gap:9px;margin-left:auto;}
 
 /* ---- team ---- */
-.add-member{display:flex;gap:9px;}
-.add-member .in{flex:1;}
+.add-member{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;}
+.add-member .in{min-width:0;}
+.hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin:-4px 0 0;}
 .member-list{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:320px;overflow-y:auto;}
 .member-row{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:9px;transition:background .12s;}
 .member-row:hover{background:var(--surface-2);}
+.member-block{display:flex;flex-direction:column;gap:1px;min-width:0;}
 .member-name{font-weight:550;font-size:13.5px;}
-.member-count{margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:500;}
+.member-email{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.member-email.muted{font-style:italic;opacity:.75;}
+.member-count{margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:500;white-space:nowrap;}
 .empty-row{color:var(--muted);font-size:13px;padding:10px 6px;font-style:italic;}
 .btn-lbl{}
 
