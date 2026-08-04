@@ -10,6 +10,7 @@
     "client": "vite",
     "gmail-auth": "node --env-file-if-exists=.env scripts/gmail-auth.js",
     "build": "vite build",
+    "vercel-build": "node db/migrate.js && vite build",
     "preview": "vite preview",
     "db:up": "docker compose up -d",
     "db:generate": "drizzle-kit generate",
