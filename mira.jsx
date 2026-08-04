@@ -1618,7 +1618,7 @@ const CSS = `
   position:relative;background:var(--surface);border:1px solid var(--line);
   border-radius:11px;padding:11px 12px 10px;cursor:pointer;
   box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,border-color .12s;
-  overflow:hidden;
+  overflow:hidden;flex-shrink:0;
 }
 .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--spine);}
 .card:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(20,28,48,.10);border-color:#D6DBE6;}
