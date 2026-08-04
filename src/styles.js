@@ -250,6 +250,12 @@ export const CSS = `
 .comment-edit{margin-top:4px;}
 .comment-composer{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
 .comment-composer .btn{align-self:flex-end;}
+.mention-chip{color:var(--accent);background:var(--accent-weak);border-radius:5px;padding:1px 4px;font-weight:600;}
+
+.mention-input-wrap{position:relative;}
+.mention-menu{position:absolute;left:0;right:0;bottom:100%;margin-bottom:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);list-style:none;padding:4px;margin-top:0;max-height:200px;overflow-y:auto;z-index:20;}
+.mention-menu-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:12.5px;cursor:pointer;}
+.mention-menu-item.active,.mention-menu-item:hover{background:var(--accent-weak);}
 
 /* ---- attachments ---- */
 .attachment-list{display:flex;flex-direction:column;gap:6px;}

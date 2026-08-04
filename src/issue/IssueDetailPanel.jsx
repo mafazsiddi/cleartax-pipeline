@@ -201,7 +201,7 @@ export default function IssueDetailPanel({
     return (
       <div className="overlay" onMouseDown={onClose}>
         <div className="modal issue-panel" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="modal-body" style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div className="modal-body" style={{ alignItems: 'center', padding: '40px 0' }}>
             <div className="spinner" />
           </div>
         </div>
@@ -381,6 +381,7 @@ export default function IssueDetailPanel({
               comments={comments}
               currentUser={user}
               canComment={canEdit}
+              mentionCandidates={members.filter((m) => !m.deactivatedAt)}
               onAdd={addComment}
               onEdit={editComment}
               onDelete={deleteComment}
