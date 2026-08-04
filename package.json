@@ -10,22 +10,30 @@
     "client": "vite",
     "gmail-auth": "node --env-file-if-exists=.env scripts/gmail-auth.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:up": "docker compose up -d",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env db/migrate.js",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "node --env-file-if-exists=.env db/seed.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.109.0",
+    "@vercel/blob": "^2.6.1",
     "concurrently": "^8.2.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.36.4",
     "express": "^4.19.2",
     "lucide-react": "^0.344.0",
     "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "sqlite3": "^5.1.7"
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "drizzle-kit": "^0.28.1",
     "vite": "^5.1.4"
   }
 }

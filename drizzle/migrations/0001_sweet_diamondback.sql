@@ -1,0 +1,1 @@
+ALTER TABLE "attachments" RENAME COLUMN "r2_key" TO "blob_url";
