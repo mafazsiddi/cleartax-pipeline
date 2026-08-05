@@ -31,7 +31,7 @@ npm run db:seed      # seeds the fixed issue-type list (Epic/Story/Task/Bug/Subt
 npm run dev          # starts the Express API (3001) + Vite dev server (5173)
 ```
 
-Open **http://localhost:5173**. Sign in with an email on one of the allowed domains
+Open **http://localhost:5173/mira**. Sign in with an email on one of the allowed domains
 (`clear.in`, `cleartax.in`, `cleartax.com` by default — see `ALLOWED_EMAIL_DOMAINS` below).
 If no mail transport is configured, the OTP is printed to the server console (set
 `ALLOW_CONSOLE_OTP=1` to let sign-in proceed past the email step in that case).

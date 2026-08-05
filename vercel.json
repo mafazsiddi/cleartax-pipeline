@@ -1,7 +1,11 @@
 {
   "regions": ["bom1"],
+  "redirects": [
+    { "source": "/", "destination": "/mira", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/mira", "destination": "/" },
+    { "source": "/mira/(.*)", "destination": "/" }
   ]
 }

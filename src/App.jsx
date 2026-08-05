@@ -43,7 +43,7 @@ function Gate() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/mira">
       <style>{CSS}</style>
       <AuthProvider>
         <Gate />
