@@ -9,7 +9,7 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'clear.in,cleartax.in,cleartax.com')
+const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'clear.in,cleartax.in,cleartax.com,cleartax.email')
   .split(',')
   .map((d) => d.trim().toLowerCase())
   .filter(Boolean);
