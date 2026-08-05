@@ -147,7 +147,7 @@ Success. Add this line to .env (and to Vercel's environment variables):
 GMAIL_REFRESH_TOKEN=${token.refresh_token}
 
 Then set MAIL_FROM to the mailbox you just consented as, e.g.
-MAIL_FROM=Mira <products@cleartaxmailer.com>
+MAIL_FROM=Mira <mira.support@cleartax.email>
 
 Refresh tokens do not expire, but they are revoked if the account password
 changes or access is withdrawn — re-run this script if sending starts
