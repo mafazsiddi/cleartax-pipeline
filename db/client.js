@@ -12,11 +12,19 @@ const isLocal = /localhost|127\.0\.0\.1/.test(rawConnectionString);
 // Hosted providers (Supabase, Neon, etc.) commonly present a cert chain
 // that recent pg/node versions won't verify by default when `sslmode=require`
 // is in the connection string (newer pg-connection-string treats `require` as
-// `verify-full`). Strip it and encrypt-without-verifying instead — local
+// `verify-full`). Strip just that param (keeping any others, e.g. Supabase's
+// pooler appends `&supa=...`) and encrypt-without-verifying instead — local
 // Docker Postgres has no SSL configured at all, so it's left untouched.
-const connectionString = isLocal
-  ? rawConnectionString
-  : rawConnectionString.replace(/[?&]sslmode=[^&]+/, '');
+function stripSslMode(url) {
+  const [base, query] = url.split('?');
+  if (!query) return url;
+  const params = new URLSearchParams(query);
+  params.delete('sslmode');
+  const rest = params.toString();
+  return rest ? `${base}?${rest}` : base;
+}
+
+const connectionString = isLocal ? rawConnectionString : stripSslMode(rawConnectionString);
 
 export const pool = new pg.Pool({
   connectionString,
