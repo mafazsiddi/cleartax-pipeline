@@ -115,7 +115,7 @@ export const CSS = `
   border-radius:9px;padding:8px 13px;border:1px solid transparent;transition:all .14s;white-space:nowrap;
 }
 .btn:disabled{opacity:.55;cursor:not-allowed;}
-.btn.primary{background:var(--accent);color:#fff;box-shadow:var(--shadow);}
+.btn.primary{background:var(--accent);color:#fff;box-shadow:var(--shadow);text-decoration:none;}
 .btn.primary:hover:not(:disabled){background:var(--accent-2);}
 .btn.ghost{background:var(--surface);color:var(--ink-2);border-color:var(--line);}
 .btn.ghost:hover{border-color:#D3D8E2;color:var(--ink);background:var(--surface-2);}
@@ -135,8 +135,20 @@ export const CSS = `
 
 /* ---- 404 ---- */
 .notfound{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:40px;}
-.notfound h2{font-family:var(--font-display);font-size:19px;font-weight:600;color:var(--ink);margin:6px 0 0;letter-spacing:-.01em;}
+.notfound h2{font-family:var(--font-display);font-size:19px;font-weight:600;color:var(--ink);margin:10px 0 0;letter-spacing:-.01em;}
 .notfound p{font-size:13.5px;max-width:340px;margin:0 0 8px;line-height:1.5;}
+.notfound-scene{display:flex;align-items:center;gap:2px;}
+.notfound-digit{
+  font-family:var(--font-display);font-size:56px;font-weight:700;line-height:1;
+  color:var(--accent);animation:notfound-float 2.6s ease-in-out infinite;
+}
+.notfound-digit-2{animation-delay:.25s;}
+.notfound-compass{
+  display:grid;place-items:center;width:52px;height:52px;margin:0 2px;border-radius:50%;
+  background:var(--accent-weak);color:var(--accent);animation:notfound-spin 7s linear infinite;
+}
+@keyframes notfound-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
+@keyframes notfound-spin{to{transform:rotate(360deg);}}
 
 /* ---- board ---- */
 .board{
