@@ -3,6 +3,7 @@ import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRigh
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { PRIORITIES } from '../shared/helpers.js';
+import ConfirmDialog from '../shared/ConfirmDialog.jsx';
 import LabelPicker from './LabelPicker.jsx';
 import CommentThread from './CommentThread.jsx';
 import AttachmentList from './AttachmentList.jsx';
@@ -28,6 +29,7 @@ export default function IssueDetailPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [addingChild, setAddingChild] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [childTitle, setChildTitle] = useState('');
   const [childType, setChildType] = useState('subtask');
 
@@ -109,7 +111,7 @@ export default function IssueDetailPanel({
   };
 
   const removeIssue = async () => {
-    if (!window.confirm('Delete this issue? This cannot be undone.')) return;
+    setConfirmingDelete(false);
     await request(`/issues/${issueId}`, { method: 'DELETE' });
     onChanged?.();
     onClose();
@@ -215,6 +217,7 @@ export default function IssueDetailPanel({
   const parent = issue.parent || null;
 
   return (
+    <>
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal issue-panel" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -391,7 +394,7 @@ export default function IssueDetailPanel({
 
         {canEdit && (
           <div className="modal-foot">
-            <button className="btn danger" onClick={removeIssue}>
+            <button className="btn danger" onClick={() => setConfirmingDelete(true)}>
               <Trash2 size={15} /> Delete
             </button>
             <div className="foot-right">
@@ -401,5 +404,16 @@ export default function IssueDetailPanel({
         )}
       </div>
     </div>
+
+    {confirmingDelete && (
+      <ConfirmDialog
+        title="Delete this issue?"
+        message="This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={removeIssue}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+    )}
+    </>
   );
 }

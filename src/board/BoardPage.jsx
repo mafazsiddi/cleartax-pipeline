@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Search, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, X, AlertTriangle, Upload } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { usePolling } from '../hooks/usePolling.js';
 import { sortIssues, todayStr } from '../shared/helpers.js';
 import IssueCard from './IssueCard.jsx';
 import IssueDetailPanel from '../issue/IssueDetailPanel.jsx';
 import CreateIssueModal from '../issue/CreateIssueModal.jsx';
+import BulkImportModal from '../issue/BulkImportModal.jsx';
+import NotFoundPage from '../layout/NotFoundPage.jsx';
 
 export default function BoardPage() {
   const { projectKey, issueKey } = useParams();
@@ -31,6 +33,7 @@ export default function BoardPage() {
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [createFor, setCreateFor] = useState(null); // statusId or null
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const openIssueId = issues.find((i) => i.key === issueKey)?.id || null;
 
@@ -83,7 +86,7 @@ export default function BoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fAssignee, fPriority, fType]);
 
-  const modalOpen = !!openIssueId || !!createFor;
+  const modalOpen = !!openIssueId || !!createFor || bulkImportOpen;
   usePolling(() => project && loadIssues(project.id), {
     enabled: !!project,
     paused: () => modalOpen || !!dragId,
@@ -130,6 +133,13 @@ export default function BoardPage() {
     await loadIssues(project.id);
   };
 
+  const bulkImportIssues = async (rows) => {
+    const result = await request(`/projects/${project.id}/issues/bulk`, { method: 'POST', body: { rows } });
+    await loadIssues(project.id);
+    if (result.labels?.length) setLabels((prev) => [...prev, ...result.labels]);
+    return result;
+  };
+
   const onCardDragStart = (e, id) => {
     setDragId(id);
     e.dataTransfer.effectAllowed = 'move';
@@ -153,7 +163,7 @@ export default function BoardPage() {
   const closeIssue = () => navigate(`/projects/${projectKey}/board`);
 
   if (notFound) {
-    return <div className="loading">Project "{projectKey}" wasn't found.</div>;
+    return <NotFoundPage title="Project not found" message={`We couldn't find a project with the key "${projectKey}".`} />;
   }
 
   const issueTypesById = Object.fromEntries(issueTypes.map((t) => [t.id, t]));
@@ -197,6 +207,12 @@ export default function BoardPage() {
             <span className="overdue-pill" title="Issues past their due date">
               <AlertTriangle size={12} strokeWidth={2.4} /> {overdueCount} overdue
             </span>
+          )}
+
+          {canEdit && (
+            <button className="btn ghost" onClick={() => setBulkImportOpen(true)}>
+              <Upload size={15} strokeWidth={2.4} /> Bulk import
+            </button>
           )}
 
           {canEdit && (
@@ -278,6 +294,14 @@ export default function BoardPage() {
           defaultStatusId={createFor}
           onClose={() => setCreateFor(null)}
           onCreate={createIssue}
+        />
+      )}
+
+      {bulkImportOpen && (
+        <BulkImportModal
+          issueTypes={issueTypes}
+          onClose={() => setBulkImportOpen(false)}
+          onImport={bulkImportIssues}
         />
       )}
     </div>

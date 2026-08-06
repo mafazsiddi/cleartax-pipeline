@@ -179,6 +179,101 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
   }
 });
 
+projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, res) => {
+  const { rows } = req.body || {};
+  if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows to import' });
+  if (rows.length > 500) return res.status(400).json({ error: 'Import is limited to 500 rows at a time' });
+
+  try {
+    const created = await db.transaction(async (tx) => {
+      const allTypes = await tx.select().from(issueTypes);
+      const typesById = Object.fromEntries(allTypes.map((t) => [t.id, t]));
+
+      const status = await resolveDefaultStatus(tx, req.params.projectId);
+      if (!status) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
+
+      const existingLabels = await tx.select().from(labels).where(eq(labels.projectId, req.params.projectId));
+      const labelIdByName = new Map(existingLabels.map((l) => [l.name.toLowerCase(), l.id]));
+      const SWATCHES = ['#8b5cf6', '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748b', '#ec4899', '#06b6d4'];
+      let swatchIdx = existingLabels.length;
+
+      // Parents always have a strictly lower hierarchyLevel, so sorting ascending
+      // guarantees every parentTempId resolves before its children are processed.
+      const ordered = [...rows].sort(
+        (a, b) => (typesById[a.issueTypeId]?.hierarchyLevel ?? 0) - (typesById[b.issueTypeId]?.hierarchyLevel ?? 0)
+      );
+
+      const tempIdToReal = new Map(); // tempId -> { id, hierarchyLevel }
+      const createdIssues = [];
+      const createdLabels = [];
+
+      for (const row of ordered) {
+        const issueType = typesById[row.issueTypeId];
+        if (!issueType) {
+          throw Object.assign(new Error(`"${row.title || row.tempId}": invalid issue type`), { statusCode: 400 });
+        }
+        if (!row.title || !String(row.title).trim()) {
+          throw Object.assign(new Error('A row is missing a title'), { statusCode: 400 });
+        }
+
+        let parentId = null;
+        if (row.parentTempId) {
+          const parent = tempIdToReal.get(row.parentTempId);
+          if (!parent) throw Object.assign(new Error(`"${row.title}": parent row not found`), { statusCode: 400 });
+          if (parent.hierarchyLevel + 1 !== issueType.hierarchyLevel) {
+            throw Object.assign(new Error(`"${row.title}" cannot be nested under its mapped parent`), { statusCode: 400 });
+          }
+          parentId = parent.id;
+        }
+
+        const key = await nextIssueKey(tx, req.params.projectId);
+        const [inserted] = await tx
+          .insert(issues)
+          .values({
+            key,
+            projectId: req.params.projectId,
+            issueTypeId: row.issueTypeId,
+            parentId,
+            statusId: status.id,
+            title: row.title.trim(),
+            description: row.description || '',
+            reporterId: req.user.id,
+            priority: row.priority || 'medium',
+          })
+          .returning();
+
+        if (row.tempId) tempIdToReal.set(row.tempId, { id: inserted.id, hierarchyLevel: issueType.hierarchyLevel });
+
+        for (const rawName of row.labelNames || []) {
+          const name = String(rawName).trim();
+          if (!name) continue;
+          let labelId = labelIdByName.get(name.toLowerCase());
+          if (!labelId) {
+            const [newLabel] = await tx
+              .insert(labels)
+              .values({ projectId: req.params.projectId, name, color: SWATCHES[swatchIdx++ % SWATCHES.length] })
+              .returning();
+            labelId = newLabel.id;
+            labelIdByName.set(name.toLowerCase(), labelId);
+            createdLabels.push(newLabel);
+          }
+          await tx.insert(issueLabels).values({ issueId: inserted.id, labelId }).onConflictDoNothing();
+        }
+
+        createdIssues.push({ issue: inserted, tempId: row.tempId });
+      }
+
+      return { issues: createdIssues, labels: createdLabels };
+    });
+
+    res.json(created);
+  } catch (err) {
+    const statusCode = err.statusCode || 500;
+    if (statusCode === 500) console.error('Bulk import error:', err);
+    res.status(statusCode).json({ error: err.message || 'Bulk import failed' });
+  }
+});
+
 export const issueByIdRouter = Router();
 issueByIdRouter.use(requireAuth);
 

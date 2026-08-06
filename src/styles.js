@@ -133,6 +133,11 @@ export const CSS = `
 .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
+/* ---- 404 ---- */
+.notfound{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:40px;}
+.notfound h2{font-family:var(--font-display);font-size:19px;font-weight:600;color:var(--ink);margin:6px 0 0;letter-spacing:-.01em;}
+.notfound p{font-size:13.5px;max-width:340px;margin:0 0 8px;line-height:1.5;}
+
 /* ---- board ---- */
 .board{
   flex:1;display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;
@@ -205,7 +210,7 @@ export const CSS = `
 .label-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
 .label-add-btn{
   display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--ink-2);
-  background:var(--surface-2);border:1px dashed var(--line);border-radius:20px;padding:3px 9px;cursor:pointer;
+  background:var(--surface-2);border:1px dashed var(--line);border-radius:20px;padding:10px;cursor:pointer;
 }
 .label-add-btn:hover{border-color:var(--accent);color:var(--accent);}
 .label-dropdown{
@@ -300,6 +305,44 @@ export const CSS = `
 .err{color:var(--p-urgent);font-size:12px;margin:-6px 0 0;font-weight:500;}
 .modal-foot{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--line);background:var(--surface-2);}
 .foot-right{display:flex;gap:9px;margin-left:auto;}
+.spin{animation:spin .7s linear infinite;}
+
+/* ---- bulk import ---- */
+.modal.wide{max-width:860px;}
+.import-steps{display:flex;gap:6px;padding:10px 18px 0;}
+.import-step{font-size:11.5px;font-weight:600;color:var(--muted);padding:5px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--line);}
+.import-step.active{color:var(--accent);background:var(--accent-weak);border-color:var(--accent-weak);}
+.import-step.past{color:var(--ink-2);}
+.import-drop{
+  display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  padding:36px 18px;border:1.5px dashed var(--line);border-radius:12px;color:var(--ink-2);
+  cursor:pointer;transition:all .14s;
+}
+.import-drop:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-weak);}
+.import-drop .hint{color:var(--muted);}
+.import-warn{color:var(--p-high);display:flex;align-items:center;gap:5px;}
+.import-map-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;}
+.import-label-cols{display:flex;flex-wrap:wrap;gap:8px 14px;}
+.import-label-col{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500;}
+.import-value-map{display:flex;flex-direction:column;gap:7px;max-height:180px;overflow-y:auto;}
+.import-value-row{display:grid;grid-template-columns:1fr 180px;align-items:center;gap:10px;font-size:12.5px;color:var(--ink);}
+.import-preview-list{display:flex;flex-direction:column;gap:2px;max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px;}
+.import-preview-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:12.5px;}
+.import-preview-row.has-err{background:#FDECED;}
+.import-preview-row .warn-ic{color:var(--p-urgent);flex:none;}
+.import-preview-row .ok-ic{color:#22c55e;flex:none;}
+.import-row-type{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);flex:none;}
+.import-row-title{font-weight:500;color:var(--ink);}
+.import-row-labels{color:var(--ink-2);font-size:11.5px;margin-left:auto;}
+.import-row-err{color:var(--p-urgent);font-size:11.5px;font-weight:500;}
+.Toastify__toast{
+  font-family:var(--font-body);font-size:13.5px;border-radius:11px;
+  box-shadow:var(--shadow-lg);padding:12px 14px;
+}
+.Toastify__toast--success{background:var(--surface);color:var(--ink);border:1px solid #BEEACB;}
+.Toastify__toast--error{background:var(--surface);color:var(--ink);border:1px solid #F7C9CB;}
+.Toastify__progress-bar--success{background:#22c55e;}
+.Toastify__progress-bar--error{background:var(--p-urgent);}
 
 /* ---- team / users admin ---- */
 .hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin:-4px 0 0;}
