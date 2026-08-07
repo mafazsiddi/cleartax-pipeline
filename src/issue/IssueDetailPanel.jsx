@@ -409,20 +409,17 @@ export default function IssueDetailPanel({
             </div>
           )}
 
-          <label className="field">
-            <span className="field-lbl">Attachment link</span>
+          <div className="field">
+            <span className="field-lbl">Attachments</span>
             <input
               className="in"
               type="url"
               value={attachmentLink}
               onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
               disabled={!canEdit}
-              placeholder="Link to an externally-hosted attachment (from import)"
+              placeholder="Link to an externally-hosted attachment (from import)…"
+              style={{ marginBottom: 8 }}
             />
-          </label>
-
-          <div className="field">
-            <span className="field-lbl">Attachments</span>
             <AttachmentList
               attachments={attachments}
               canEdit={canEdit}
