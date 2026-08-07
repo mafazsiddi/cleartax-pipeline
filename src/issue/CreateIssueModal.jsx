@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { PRIORITIES } from '../shared/helpers.js';
+import { PRIORITIES, todayStr } from '../shared/helpers.js';
 
 const TOP_LEVEL_TYPES = ['epic', 'story', 'task', 'bug'];
 
@@ -11,7 +11,6 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(defaultStatusId || statuses[0]?.id || '');
   const [assigneeId, setAssigneeId] = useState('');
-  const [assignorId, setAssignorId] = useState('');
   const [priority, setPriority] = useState('medium');
   const [dueDate, setDueDate] = useState('');
   const [property, setProperty] = useState('');
@@ -27,12 +26,12 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
   }, []);
 
   const save = async () => {
-    if (!title.trim()) return setErr('Give the issue a title so the team knows what it is.');
+    if (!title.trim()) return setErr('Give the card a title so the team knows what it is.');
     setSaving(true);
     try {
       await onCreate({
         issueTypeId, title: title.trim(), description: description.trim(),
-        statusId, assigneeId: assigneeId || null, assignorId: assignorId || null, priority, dueDate: dueDate || null,
+        statusId, assigneeId: assigneeId || null, priority, dueDate: dueDate || null,
         property: property.trim() || null, region: region.trim() || null, link: link.trim() || null,
       });
       onClose();
@@ -47,7 +46,7 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>New issue</h2>
+          <h2>New card</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
@@ -99,18 +98,6 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
               </div>
             </label>
             <label className="field">
-              <span className="field-lbl">Assignor</span>
-              <div className="selwrap">
-                <select className="sel wide" value={assignorId} onChange={(e) => setAssignorId(e.target.value)}>
-                  <option value="">Unspecified</option>
-                  {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-            </label>
-          </div>
-
-          <div className="row2">
-            <label className="field">
               <span className="field-lbl">Priority</span>
               <div className="selwrap">
                 <select className="sel wide" value={priority} onChange={(e) => setPriority(e.target.value)}>
@@ -118,11 +105,12 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
                 </select>
               </div>
             </label>
-            <label className="field">
-              <span className="field-lbl">Due date</span>
-              <input className="in" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </label>
           </div>
+
+          <label className="field">
+            <span className="field-lbl">Due date</span>
+            <input className="in" type="date" min={todayStr()} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </label>
 
           <div className="row2">
             <label className="field">
@@ -146,7 +134,7 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
           <div className="foot-right">
             <button className="btn ghost" onClick={onClose}>Cancel</button>
             <button className="btn primary" disabled={saving} onClick={save}>
-              <Check size={16} strokeWidth={2.4} /> Add issue
+              <Check size={16} strokeWidth={2.4} /> Add card
             </button>
           </div>
         </div>

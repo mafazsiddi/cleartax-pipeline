@@ -3,9 +3,10 @@ import { Readable } from 'node:stream';
 import { eq } from 'drizzle-orm';
 import { handleUpload } from '@vercel/blob/client';
 import { db } from '../../db/client.js';
-import { attachments, userSessions, users } from '../../db/schema/index.js';
+import { attachments, issues, userSessions, users } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { blobEnabled, getBlobStream, deleteBlob, MAX_UPLOAD_BYTES } from '../services/blob.service.js';
+import { canEditIssue } from '../services/issueAccess.service.js';
 
 /**
  * Resolve the caller's role from a bearer token. Used instead of the usual
@@ -76,6 +77,11 @@ issueAttachmentsRouter.get('/', async (req, res) => {
 });
 
 issueAttachmentsRouter.post('/confirm', requireRole(['member', 'admin']), async (req, res) => {
+  const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.issueId)).limit(1);
+  if (!existing) return res.status(404).json({ error: 'Issue not found' });
+  if (!canEditIssue(req.user, existing)) {
+    return res.status(403).json({ error: 'Only the assignor or an admin can edit this card' });
+  }
   const { blobUrl, fileName, fileSize, mimeType } = req.body || {};
   if (!blobUrl || !fileName) return res.status(400).json({ error: 'blobUrl and fileName are required' });
   const [created] = await db
@@ -110,7 +116,7 @@ attachmentByIdRouter.get('/:id/download', async (req, res) => {
   Readable.fromWeb(result.stream).pipe(res);
 });
 
-attachmentByIdRouter.delete('/:id', requireRole(['member', 'admin']), async (req, res) => {
+attachmentByIdRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
   const [attachment] = await db.select().from(attachments).where(eq(attachments.id, req.params.id)).limit(1);
   if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
 

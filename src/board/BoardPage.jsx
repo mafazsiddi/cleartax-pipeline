@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { Plus, Search, X, AlertTriangle, Upload } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { usePolling } from '../hooks/usePolling.js';
@@ -15,6 +16,7 @@ export default function BoardPage() {
   const navigate = useNavigate();
   const { request, user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'member';
+  const isAdmin = user?.role === 'admin';
 
   const [project, setProject] = useState(null);
   const [statuses, setStatuses] = useState([]);
@@ -124,6 +126,7 @@ export default function BoardPage() {
       if (project) loadIssues(project.id);
     } catch (err) {
       console.error('Failed to move issue:', err);
+      toast.error(err.message || 'Could not move that card.');
       if (project) loadIssues(project.id);
     }
   };
@@ -174,7 +177,7 @@ export default function BoardPage() {
         <div className="tools" style={{ marginLeft: 0 }}>
           <div className="searchbox">
             <Search size={15} className="search-ic" aria-hidden="true" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search issues" aria-label="Search issues" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards" aria-label="Search cards" />
             {query && <button className="search-clear" onClick={() => setQuery('')} aria-label="Clear search"><X size={13} /></button>}
           </div>
 
@@ -204,7 +207,7 @@ export default function BoardPage() {
           </div>
 
           {overdueCount > 0 && (
-            <span className="overdue-pill" title="Issues past their due date">
+            <span className="overdue-pill" title="Cards past their due date">
               <AlertTriangle size={12} strokeWidth={2.4} /> {overdueCount} overdue
             </span>
           )}
@@ -217,7 +220,7 @@ export default function BoardPage() {
 
           {canEdit && (
             <button className="btn primary" onClick={() => setCreateFor(statuses.find((s) => s.isDefault)?.id || statuses[0]?.id)}>
-              <Plus size={16} strokeWidth={2.4} /> New issue
+              <Plus size={16} strokeWidth={2.4} /> New card
             </button>
           )}
         </div>
@@ -250,6 +253,7 @@ export default function BoardPage() {
                       issue={issue}
                       issueType={issueTypesById[issue.issueTypeId]}
                       dragging={dragId === issue.id}
+                      canDrag={isAdmin || issue.assignorId === user?.id}
                       onOpen={() => openIssue(issue.key)}
                       onDragStart={(e) => onCardDragStart(e, issue.id)}
                       onDragEnd={endDrag}
@@ -260,7 +264,7 @@ export default function BoardPage() {
 
                 {canEdit && (
                   <button className="col-add" onClick={() => setCreateFor(s.id)}>
-                    <Plus size={14} /> Add issue
+                    <Plus size={14} /> Add card
                   </button>
                 )}
               </section>

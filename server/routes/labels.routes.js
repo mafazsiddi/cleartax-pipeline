@@ -35,7 +35,7 @@ projectLabelsRouter.post('/', requireRole(['member', 'admin']), async (req, res)
 export const labelByIdRouter = Router();
 labelByIdRouter.use(requireAuth);
 
-labelByIdRouter.delete('/:id', requireRole(['member', 'admin']), async (req, res) => {
+labelByIdRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
   await db.delete(labels).where(eq(labels.id, req.params.id));
   res.json({ success: true });
 });

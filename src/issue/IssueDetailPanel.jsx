@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ArrowUp } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { PRIORITIES } from '../shared/helpers.js';
+import { PRIORITIES, todayStr } from '../shared/helpers.js';
 import ConfirmDialog from '../shared/ConfirmDialog.jsx';
 import LabelPicker from './LabelPicker.jsx';
 import CommentThread from './CommentThread.jsx';
@@ -16,7 +16,9 @@ export default function IssueDetailPanel({
   onClose, onChanged, onCreateIssue, onLabelCreated, onOpenIssue,
 }) {
   const { request, user, token } = useAuth();
-  const canEdit = user?.role === 'admin' || user?.role === 'member';
+  const isAdmin = user?.role === 'admin';
+  const canComment = isAdmin || user?.role === 'member';
+  const canDelete = isAdmin;
   const issueTypesById = Object.fromEntries(issueTypes.map((t) => [t.id, t]));
 
   const [issue, setIssue] = useState(null);
@@ -106,7 +108,6 @@ export default function IssueDetailPanel({
           title: title.trim(),
           description,
           assigneeId: assigneeId || null,
-          assignorId: assignorId || null,
           priority,
           dueDate: dueDate || null,
           storyPoints: storyPoints === '' ? null : Number(storyPoints),
@@ -226,6 +227,7 @@ export default function IssueDetailPanel({
     );
   }
 
+  const canEditCard = isAdmin || issue.assignorId === user?.id;
   const issueType = issueTypesById[issue.issueTypeId];
   const TypeIcon = TYPE_ICONS[issue.issueTypeId] || CheckSquare;
   const childTypeOptions = (CHILD_TYPES_BY_LEVEL[issueType?.hierarchyLevel] || []).map((id) => issueTypesById[id]).filter(Boolean);
@@ -257,9 +259,13 @@ export default function IssueDetailPanel({
               className="in issue-title-in"
               value={title}
               onChange={(e) => markDirty(setTitle)(e.target.value)}
-              disabled={!canEdit}
+              disabled={!canEditCard}
             />
           </label>
+
+          {!canEditCard && (
+            <p className="hint">Only {members.find((m) => m.id === issue.assignorId)?.name || 'the assignor'} or an admin can edit this card. You can still comment below.</p>
+          )}
 
           <label className="field">
             <span className="field-lbl">Description</span>
@@ -268,7 +274,7 @@ export default function IssueDetailPanel({
               rows={4}
               value={description}
               onChange={(e) => markDirty(setDescription)(e.target.value)}
-              disabled={!canEdit}
+              disabled={!canEditCard}
               placeholder="Add a description…"
             />
           </label>
@@ -281,7 +287,7 @@ export default function IssueDetailPanel({
               onAttach={attachLabel}
               onDetach={detachLabel}
               onCreateLabel={createLabel}
-              canEdit={canEdit}
+              canEdit={canEditCard}
             />
           </label>
 
@@ -289,7 +295,7 @@ export default function IssueDetailPanel({
             <label className="field">
               <span className="field-lbl">Status</span>
               <div className="selwrap">
-                <select className="sel wide" value={statusId} onChange={(e) => markDirty(setStatusId)(e.target.value)} disabled={!canEdit}>
+                <select className="sel wide" value={statusId} onChange={(e) => markDirty(setStatusId)(e.target.value)} disabled={!canEditCard}>
                   {statuses.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -299,7 +305,7 @@ export default function IssueDetailPanel({
             <label className="field">
               <span className="field-lbl">Priority</span>
               <div className="selwrap">
-                <select className="sel wide" value={priority} onChange={(e) => markDirty(setPriority)(e.target.value)} disabled={!canEdit}>
+                <select className="sel wide" value={priority} onChange={(e) => markDirty(setPriority)(e.target.value)} disabled={!canEditCard}>
                   {PRIORITIES.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -312,7 +318,7 @@ export default function IssueDetailPanel({
             <label className="field">
               <span className="field-lbl">Assignee</span>
               <div className="selwrap">
-                <select className="sel wide" value={assigneeId} onChange={(e) => markDirty(setAssigneeId)(e.target.value)} disabled={!canEdit}>
+                <select className="sel wide" value={assigneeId} onChange={(e) => markDirty(setAssigneeId)(e.target.value)} disabled={!canEditCard}>
                   <option value="">Unassigned</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
@@ -320,42 +326,37 @@ export default function IssueDetailPanel({
                 </select>
               </div>
             </label>
-            <label className="field">
+            <div className="field">
               <span className="field-lbl">Assignor</span>
-              <div className="selwrap">
-                <select className="sel wide" value={assignorId} onChange={(e) => markDirty(setAssignorId)(e.target.value)} disabled={!canEdit}>
-                  <option value="">Unspecified</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-            </label>
+              <span className="readonly-value" title="Set automatically from the account that added this card">
+                {members.find((m) => m.id === assignorId)?.name || '—'}
+              </span>
+            </div>
           </div>
 
           <div className="row2">
             <label className="field">
               <span className="field-lbl">Due date</span>
-              <input className="in" type="date" value={dueDate} onChange={(e) => markDirty(setDueDate)(e.target.value)} disabled={!canEdit} />
+              <input className="in" type="date" min={todayStr()} value={dueDate} onChange={(e) => markDirty(setDueDate)(e.target.value)} disabled={!canEditCard} />
             </label>
             <label className="field">
               <span className="field-lbl">Link</span>
-              <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEdit} placeholder="https://…" />
+              <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEditCard} placeholder="https://…" />
             </label>
           </div>
 
           <div className="row2">
             <label className="field">
               <span className="field-lbl">Property</span>
-              <input className="in" value={property} onChange={(e) => markDirty(setProperty)(e.target.value)} disabled={!canEdit} placeholder="e.g. Website, Landing Page" />
+              <input className="in" value={property} onChange={(e) => markDirty(setProperty)(e.target.value)} disabled={!canEditCard} placeholder="e.g. Website, Landing Page" />
             </label>
             <label className="field">
               <span className="field-lbl">Region</span>
-              <input className="in" value={region} onChange={(e) => markDirty(setRegion)(e.target.value)} disabled={!canEdit} placeholder="e.g. Global, Norway" />
+              <input className="in" value={region} onChange={(e) => markDirty(setRegion)(e.target.value)} disabled={!canEditCard} placeholder="e.g. Global, Norway" />
             </label>
           </div>
 
-          {canEdit && (
+          {canEditCard && (
             <div className="save-row">
               <button className="btn primary" disabled={!dirty || saving} onClick={save}>
                 <Check size={15} /> {saving ? 'Saving…' : 'Save changes'}
@@ -365,7 +366,7 @@ export default function IssueDetailPanel({
 
           {childTypeOptions.length > 0 && (
             <div className="field">
-              <span className="field-lbl">{issueType?.hierarchyLevel === 0 ? 'Child issues' : 'Subtasks'}</span>
+              <span className="field-lbl">{issueType?.hierarchyLevel === 0 ? 'Child cards' : 'Subtasks'}</span>
               <ul className="child-list">
                 {children.map((c) => {
                   const ChildIcon = TYPE_ICONS[c.issueTypeId] || CheckSquare;
@@ -378,9 +379,9 @@ export default function IssueDetailPanel({
                   );
                 })}
               </ul>
-              {canEdit && !addingChild && (
+              {canEditCard && !addingChild && (
                 <button className="label-add-btn" onClick={() => { setAddingChild(true); setChildType(childTypeOptions[0].id); }}>
-                  <Plus size={12} /> Add {issueType?.hierarchyLevel === 0 ? 'child issue' : 'subtask'}
+                  <Plus size={12} /> Add {issueType?.hierarchyLevel === 0 ? 'child card' : 'subtask'}
                 </button>
               )}
               {addingChild && (
@@ -416,13 +417,14 @@ export default function IssueDetailPanel({
               type="url"
               value={attachmentLink}
               onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
-              disabled={!canEdit}
+              disabled={!canEditCard}
               placeholder="Link to an externally-hosted attachment (from import)…"
               style={{ marginBottom: 8 }}
             />
             <AttachmentList
               attachments={attachments}
-              canEdit={canEdit}
+              canEdit={canEditCard}
+              canDelete={canDelete}
               uploading={uploading}
               uploadError={uploadError}
               onUpload={uploadFile}
@@ -436,7 +438,7 @@ export default function IssueDetailPanel({
             <CommentThread
               comments={comments}
               currentUser={user}
-              canComment={canEdit}
+              canComment={canComment}
               mentionCandidates={members.filter((m) => !m.deactivatedAt)}
               onAdd={addComment}
               onEdit={editComment}
@@ -445,11 +447,13 @@ export default function IssueDetailPanel({
           </div>
         </div>
 
-        {canEdit && (
+        {canComment && (
           <div className="modal-foot">
-            <button className="btn danger" onClick={() => setConfirmingDelete(true)}>
-              <Trash2 size={15} /> Delete
-            </button>
+            {canDelete ? (
+              <button className="btn danger" onClick={() => setConfirmingDelete(true)}>
+                <Trash2 size={15} /> Delete
+              </button>
+            ) : <span />}
             <div className="foot-right">
               <button className="btn ghost" onClick={onClose}>Close</button>
             </div>
@@ -460,7 +464,7 @@ export default function IssueDetailPanel({
 
     {confirmingDelete && (
       <ConfirmDialog
-        title="Delete this issue?"
+        title="Delete this card?"
         message="This cannot be undone."
         confirmLabel="Delete"
         onConfirm={removeIssue}

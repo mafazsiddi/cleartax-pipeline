@@ -8,7 +8,8 @@ const SWATCHES = ['#8b5cf6', '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748
 
 export default function ProjectSettingsPage() {
   const { projectKey } = useParams();
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const navigate = useNavigate();
   const { refreshProjects } = useOutletContext();
   const [project, setProject] = useState(null);
@@ -168,9 +169,11 @@ export default function ProjectSettingsPage() {
               <span className="drag-handle" aria-hidden="true"><GripVertical size={14} /></span>
               <span className={`status-cat-badge status-cat-${s.category}`}>{s.category.replace('_', ' ')}</span>
               <span className="settings-row-name">{s.name}</span>
-              <button className="icon-btn small" onClick={() => deleteStatus(s.id)} title="Delete status" aria-label={`Delete ${s.name}`}>
-                <Trash2 size={14} />
-              </button>
+              {isAdmin && (
+                <button className="icon-btn small" onClick={() => deleteStatus(s.id)} title="Delete status" aria-label={`Delete ${s.name}`}>
+                  <Trash2 size={14} />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -192,9 +195,11 @@ export default function ProjectSettingsPage() {
             <li key={l.id} className="settings-row">
               <span className="label-chip" style={{ background: `${l.color}22`, color: l.color }}>{l.name}</span>
               <span style={{ marginLeft: 'auto' }} />
-              <button className="icon-btn small" onClick={() => deleteLabel(l.id)} title="Delete label" aria-label={`Delete ${l.name}`}>
-                <Trash2 size={14} />
-              </button>
+              {isAdmin && (
+                <button className="icon-btn small" onClick={() => deleteLabel(l.id)} title="Delete label" aria-label={`Delete ${l.name}`}>
+                  <Trash2 size={14} />
+                </button>
+              )}
             </li>
           ))}
           {labels.length === 0 && <li className="empty-row">No labels yet.</li>}
@@ -219,7 +224,7 @@ export default function ProjectSettingsPage() {
       <section className="settings-section danger-zone">
         <h3 className="settings-h3" style={{ color: '#EF4444' }}>Danger zone</h3>
         <p className="hint">
-          Permanently deletes <strong>{project.key}</strong> and everything in it — every issue, comment, label,
+          Permanently deletes <strong>{project.key}</strong> and everything in it — every card, comment, label,
           and attachment. This cannot be undone.
         </p>
         <div className="settings-add-row">

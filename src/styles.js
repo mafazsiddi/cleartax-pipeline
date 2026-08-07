@@ -321,6 +321,7 @@ export const CSS = `
 }
 .in:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-weak);}
 .in:disabled{opacity:.65;cursor:not-allowed;}
+.readonly-value{font-size:13.5px;color:var(--ink-2);padding:9px 11px;border:1px solid var(--line-2);border-radius:9px;background:var(--surface-2);}
 .area{resize:vertical;min-height:64px;line-height:1.45;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
 .err{color:var(--p-urgent);font-size:12px;margin:-6px 0 0;font-weight:500;}

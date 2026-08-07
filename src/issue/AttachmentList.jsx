@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Paperclip, Download, Trash2, Upload } from 'lucide-react';
 import { formatBytes } from '../shared/helpers.js';
 
-export default function AttachmentList({ attachments, canEdit, uploading, uploadError, onUpload, onDownload, onDelete }) {
+export default function AttachmentList({ attachments, canEdit, canDelete, uploading, uploadError, onUpload, onDownload, onDelete }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -40,7 +40,7 @@ export default function AttachmentList({ attachments, canEdit, uploading, upload
           >
             <Download size={14} />
           </button>
-          {canEdit && (
+          {canDelete && (
             <button className="icon-btn small" onClick={() => onDelete(a.id)} title="Delete" aria-label="Delete attachment">
               <Trash2 size={14} />
             </button>

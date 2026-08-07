@@ -4,6 +4,7 @@ import { db } from '../../db/client.js';
 import { issues, issueTypes, statuses, users, labels, issueLabels } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { nextIssueKey } from '../services/issueKey.service.js';
+import { canEditIssue } from '../services/issueAccess.service.js';
 import { sendMail, mailEnabled, mailConfig, assignmentEmail } from '../../lib/mail.js';
 
 const HIERARCHY = { epic: 0, story: 1, task: 1, bug: 1, subtask: 2 };
@@ -123,7 +124,7 @@ projectIssuesRouter.get('/', async (req, res) => {
 
 projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res) => {
   const {
-    issueTypeId, parentId, statusId, title, description, assigneeId, assignorId, priority, dueDate, storyPoints,
+    issueTypeId, parentId, statusId, title, description, assigneeId, priority, dueDate, storyPoints,
     property, region, link, attachmentLink,
   } = req.body || {};
   if (!title || !String(title).trim()) return res.status(400).json({ error: 'Title is required' });
@@ -170,7 +171,7 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
           title: title.trim(),
           description: description || '',
           assigneeId: assigneeId || null,
-          assignorId: assignorId || null,
+          assignorId: req.user.id,
           reporterId: req.user.id,
           priority: priority || 'medium',
           dueDate: dueDate || null,
@@ -279,6 +280,9 @@ issueByIdRouter.get('/:id/children', async (req, res) => {
 issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res) => {
   const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);
   if (!existing) return res.status(404).json({ error: 'Issue not found' });
+  if (!canEditIssue(req.user, existing)) {
+    return res.status(403).json({ error: 'Only the assignor or an admin can edit this card' });
+  }
 
   const {
     title, description, assigneeId, assignorId, priority, dueDate, storyPoints, statusId, boardOrder,
@@ -312,12 +316,17 @@ issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res)
   res.json({ issue: updated });
 });
 
-issueByIdRouter.delete('/:id', requireRole(['member', 'admin']), async (req, res) => {
+issueByIdRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
   await db.delete(issues).where(eq(issues.id, req.params.id));
   res.json({ success: true });
 });
 
 issueByIdRouter.post('/:id/labels', requireRole(['member', 'admin']), async (req, res) => {
+  const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);
+  if (!existing) return res.status(404).json({ error: 'Issue not found' });
+  if (!canEditIssue(req.user, existing)) {
+    return res.status(403).json({ error: 'Only the assignor or an admin can edit this card' });
+  }
   const { labelId } = req.body || {};
   if (!labelId) return res.status(400).json({ error: 'labelId is required' });
   await db.insert(issueLabels).values({ issueId: req.params.id, labelId }).onConflictDoNothing();
@@ -325,6 +334,11 @@ issueByIdRouter.post('/:id/labels', requireRole(['member', 'admin']), async (req
 });
 
 issueByIdRouter.delete('/:id/labels/:labelId', requireRole(['member', 'admin']), async (req, res) => {
+  const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);
+  if (!existing) return res.status(404).json({ error: 'Issue not found' });
+  if (!canEditIssue(req.user, existing)) {
+    return res.status(403).json({ error: 'Only the assignor or an admin can edit this card' });
+  }
   await db
     .delete(issueLabels)
     .where(and(eq(issueLabels.issueId, req.params.id), eq(issueLabels.labelId, req.params.labelId)));

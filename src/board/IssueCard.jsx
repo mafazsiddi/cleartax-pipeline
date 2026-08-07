@@ -4,7 +4,7 @@ import { PMAP, avatarColor, initials, dueMeta } from '../shared/helpers.js';
 
 const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, subtask: CornerDownRight };
 
-export default function IssueCard({ issue, issueType, dragging, onOpen, onDragStart, onDragEnd }) {
+export default function IssueCard({ issue, issueType, dragging, canDrag, onOpen, onDragStart, onDragEnd }) {
   const p = PMAP[issue.priority] || PMAP.medium;
   const isDone = issue.statusCategory === 'done';
   const due = dueMeta(issue.dueDate, isDone);
@@ -14,8 +14,8 @@ export default function IssueCard({ issue, issueType, dragging, onOpen, onDragSt
     <article
       className={`card ${dragging ? 'is-dragging' : ''}`}
       style={{ '--spine': p.color }}
-      draggable
-      onDragStart={onDragStart}
+      draggable={canDrag}
+      onDragStart={canDrag ? onDragStart : undefined}
       onDragEnd={onDragEnd}
       onClick={onOpen}
       tabIndex={0}

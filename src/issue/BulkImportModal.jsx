@@ -212,7 +212,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
         attachmentLink: r.attachmentLink || null,
       }));
       const res = await onImport(payload);
-      toast.success(`Imported ${res.issues.length} issue${res.issues.length === 1 ? '' : 's'}.`);
+      toast.success(`Imported ${res.issues.length} card${res.issues.length === 1 ? '' : 's'}.`);
       onClose();
     } catch (e) {
       toast.error(e.message || 'Bulk import failed.');
@@ -227,7 +227,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal wide" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Bulk import issues</h2>
+          <h2>Bulk import cards</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
@@ -389,7 +389,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
             {step === 'preview' && (
               <button className="btn primary" disabled={saving || validRows.length === 0} onClick={runImport}>
                 {saving ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />}
-                {saving ? 'Importing…' : `Import ${validRows.length} issue${validRows.length === 1 ? '' : 's'}`}
+                {saving ? 'Importing…' : `Import ${validRows.length} card${validRows.length === 1 ? '' : 's'}`}
               </button>
             )}
           </div>
