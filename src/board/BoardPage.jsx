@@ -299,7 +299,6 @@ export default function BoardPage() {
 
       {bulkImportOpen && (
         <BulkImportModal
-          issueTypes={issueTypes}
           statuses={statuses}
           members={members}
           onClose={() => setBulkImportOpen(false)}

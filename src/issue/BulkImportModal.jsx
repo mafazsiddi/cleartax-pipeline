@@ -5,25 +5,23 @@ import { X, Upload, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2, Loader2 
 import { PRIORITIES } from '../shared/helpers.js';
 
 const STEPS = ['upload', 'map', 'preview'];
-const DEFAULT_TYPE_ID = 'task';
 
 // Header aliases used to auto-map columns from a CSV exported straight out of
-// the team's Google Sheet (Status, Task Name, Property, Region, Priority,
-// Assignor, Assignee, Description, Link, Attachment) without any manual mapping.
+// the team's Google Sheet (Property, Task Name, Status, Region, Priority,
+// Due date, Assignor, Assignee, Description, Link, Attachment) without any
+// manual mapping.
 const COLUMN_ALIASES = {
-  statusCol: ['status'],
-  titleCol: ['taskname', 'title', 'task', 'name', 'summary'],
   propertyCol: ['property'],
+  titleCol: ['taskname', 'title', 'task', 'name', 'summary'],
+  statusCol: ['status'],
   regionCol: ['region'],
   priorityCol: ['priority'],
+  dueDateCol: ['duedate', 'due', 'date'],
   assignorCol: ['assignor', 'assignedby'],
   assigneeCol: ['assignee', 'assignedto'],
   descCol: ['description', 'desc'],
   linkCol: ['link', 'links', 'url'],
   attachmentCol: ['attachment', 'attachments'],
-  typeCol: ['type', 'issuetype'],
-  rowCol: ['row', 'rowno', 'rownumber'],
-  parentCol: ['parentrow', 'parentrowno', 'parent'],
 };
 
 function normalize(s) {
@@ -39,11 +37,16 @@ function guessMatch(rawValue, candidates, idOf, nameOf) {
   return partial ? idOf(partial) : null;
 }
 
-function splitLabelValue(v) {
-  return String(v || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+// Sheet due dates are entered as dd-mm-yyyy; falls back to ISO yyyy-mm-dd if
+// that's what's in the cell. Anything else is left unset rather than guessed.
+function parseDueDate(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
 function autoMapColumns(headerRow) {
@@ -59,17 +62,15 @@ function autoMapColumns(headerRow) {
   return mapping;
 }
 
-export default function BulkImportModal({ issueTypes, statuses, members, onClose, onImport }) {
+export default function BulkImportModal({ statuses, members, onClose, onImport }) {
   const [step, setStep] = useState('upload');
   const [rawRows, setRawRows] = useState([]);
   const [headersOn, setHeadersOn] = useState(true);
 
   const [mapping, setMapping] = useState({
-    rowCol: null, parentCol: null, typeCol: null, statusCol: null, titleCol: null,
-    propertyCol: null, regionCol: null, descCol: null, priorityCol: null,
-    assignorCol: null, assigneeCol: null, linkCol: null, attachmentCol: null, labelCols: [],
+    titleCol: null, statusCol: null, propertyCol: null, regionCol: null, priorityCol: null,
+    dueDateCol: null, assignorCol: null, assigneeCol: null, descCol: null, linkCol: null, attachmentCol: null,
   });
-  const [typeOverrides, setTypeOverrides] = useState({});
   const [statusOverrides, setStatusOverrides] = useState({});
   const [priorityOverrides, setPriorityOverrides] = useState({});
   const [assignorOverrides, setAssignorOverrides] = useState({});
@@ -91,7 +92,6 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
     return [...set];
   }
 
-  const distinctTypeValues = useMemo(() => distinctValues(mapping.typeCol), [dataRows, mapping.typeCol]);
   const distinctStatusValues = useMemo(() => distinctValues(mapping.statusCol), [dataRows, mapping.statusCol]);
   const distinctPriorityValues = useMemo(() => distinctValues(mapping.priorityCol), [dataRows, mapping.priorityCol]);
   const distinctAssignorValues = useMemo(() => distinctValues(mapping.assignorCol), [dataRows, mapping.assignorCol]);
@@ -99,14 +99,6 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
 
   // Guessed defaults, overridden by whatever the user has explicitly picked.
   // Purely derived (no setState-during-render) so this can't loop.
-  const typeValueMap = useMemo(() => {
-    const map = {};
-    distinctTypeValues.forEach((v) => {
-      map[v] = typeOverrides[v] !== undefined ? typeOverrides[v] : guessMatch(v, issueTypes, (t) => t.id, (t) => t.name);
-    });
-    return map;
-  }, [distinctTypeValues, typeOverrides, issueTypes]);
-
   const statusValueMap = useMemo(() => {
     const map = {};
     distinctStatusValues.forEach((v) => {
@@ -141,78 +133,44 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
     return map;
   }, [distinctAssigneeValues, assigneeOverrides, members]);
 
-  const typesById = useMemo(() => Object.fromEntries(issueTypes.map((t) => [t.id, t])), [issueTypes]);
+  const statusesById = useMemo(() => Object.fromEntries(statuses.map((s) => [s.id, s])), [statuses]);
 
   const previewRows = useMemo(() => {
     if (step !== 'preview') return [];
-    const canLinkParents = mapping.rowCol != null && mapping.parentCol != null;
 
     const rows = dataRows
       .map((r, i) => {
-        const rowId = mapping.rowCol != null ? (r[mapping.rowCol] || '').trim() : String(i + 1);
         const title = mapping.titleCol != null ? (r[mapping.titleCol] || '').trim() : '';
-        const rawType = mapping.typeCol != null ? (r[mapping.typeCol] || '').trim() : '';
         const rawStatus = mapping.statusCol != null ? (r[mapping.statusCol] || '').trim() : '';
         const rawPriority = mapping.priorityCol != null ? (r[mapping.priorityCol] || '').trim() : '';
         const rawAssignor = mapping.assignorCol != null ? (r[mapping.assignorCol] || '').trim() : '';
         const rawAssignee = mapping.assigneeCol != null ? (r[mapping.assigneeCol] || '').trim() : '';
         const isBlank = r.every((cell) => !cell || !String(cell).trim());
-        const labelNames = [...new Set(mapping.labelCols.flatMap((col) => splitLabelValue(r[col])))];
         return {
-          tempId: rowId || `row-${i}`,
-          parentTempId: canLinkParents ? (r[mapping.parentCol] || '').trim() || null : null,
-          issueTypeId: mapping.typeCol != null ? (rawType ? typeValueMap[rawType] || null : null) : DEFAULT_TYPE_ID,
-          rawType,
+          rowKey: `row-${i}`,
           statusId: rawStatus ? statusValueMap[rawStatus] || defaultStatus?.id || null : defaultStatus?.id || null,
           title,
           property: mapping.propertyCol != null ? (r[mapping.propertyCol] || '').trim() : '',
           region: mapping.regionCol != null ? (r[mapping.regionCol] || '').trim() : '',
           description: mapping.descCol != null ? (r[mapping.descCol] || '').trim() : '',
           priority: rawPriority ? priorityValueMap[rawPriority] || 'medium' : 'medium',
+          dueDate: mapping.dueDateCol != null ? parseDueDate(r[mapping.dueDateCol]) : null,
           assignorId: rawAssignor ? assignorValueMap[rawAssignor] || null : null,
           assigneeId: rawAssignee ? assigneeValueMap[rawAssignee] || null : null,
           link: mapping.linkCol != null ? (r[mapping.linkCol] || '').trim() : '',
           attachmentLink: mapping.attachmentCol != null ? (r[mapping.attachmentCol] || '').trim() : '',
-          labelNames,
           isBlank,
           errors: [],
         };
       })
       .filter((r) => !r.isBlank);
 
-    const byId = Object.fromEntries(rows.map((r) => [r.tempId, r]));
     rows.forEach((row) => {
       if (!row.title) row.errors.push('Missing title');
-      if (!row.issueTypeId) row.errors.push(row.rawType ? `Unmapped type "${row.rawType}"` : 'Missing type');
-      const level = row.issueTypeId ? typesById[row.issueTypeId]?.hierarchyLevel : null;
-      row.level = level ?? 0;
-      if (row.parentTempId) {
-        const parent = byId[row.parentTempId];
-        if (!parent) row.errors.push(`Parent row "${row.parentTempId}" not found`);
-        else if (row.issueTypeId && parent.issueTypeId) {
-          const parentLevel = typesById[parent.issueTypeId]?.hierarchyLevel;
-          if (parentLevel + 1 !== level) row.errors.push('Cannot be nested under its mapped parent');
-        }
-      }
     });
 
-    // Propagate: a row whose parent has errors can't be created either, since
-    // its parentTempId will never resolve to a real id server-side.
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const row of rows) {
-        if (row.errors.length || !row.parentTempId) continue;
-        const parent = byId[row.parentTempId];
-        if (parent && parent.errors.length && !row.errors.includes('Parent row has errors')) {
-          row.errors.push('Parent row has errors');
-          changed = true;
-        }
-      }
-    }
-
     return rows;
-  }, [step, dataRows, mapping, typeValueMap, statusValueMap, priorityValueMap, assignorValueMap, assigneeValueMap, typesById, defaultStatus]);
+  }, [step, dataRows, mapping, statusValueMap, priorityValueMap, assignorValueMap, assigneeValueMap, defaultStatus]);
 
   const validRows = previewRows.filter((r) => r.errors.length === 0);
   const invalidCount = previewRows.length - validRows.length;
@@ -234,11 +192,6 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
   };
 
   const setSingle = (field, value) => setMapping((m) => ({ ...m, [field]: value === '' ? null : Number(value) }));
-  const toggleLabelCol = (idx) =>
-    setMapping((m) => ({
-      ...m,
-      labelCols: m.labelCols.includes(idx) ? m.labelCols.filter((c) => c !== idx) : [...m.labelCols, idx],
-    }));
 
   const canProceedFromMap = mapping.titleCol != null;
 
@@ -246,24 +199,20 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
     setSaving(true);
     try {
       const payload = validRows.map((r) => ({
-        tempId: r.tempId,
-        parentTempId: r.parentTempId,
-        issueTypeId: r.issueTypeId,
         statusId: r.statusId,
         title: r.title,
         property: r.property || null,
         region: r.region || null,
         description: r.description,
         priority: r.priority,
+        dueDate: r.dueDate,
         assignorId: r.assignorId,
         assigneeId: r.assigneeId,
         link: r.link || null,
         attachmentLink: r.attachmentLink || null,
-        labelNames: r.labelNames,
       }));
       const res = await onImport(payload);
-      const labelNote = res.labels.length ? ` and created ${res.labels.length} label${res.labels.length === 1 ? '' : 's'}` : '';
-      toast.success(`Imported ${res.issues.length} issue${res.issues.length === 1 ? '' : 's'}${labelNote}.`);
+      toast.success(`Imported ${res.issues.length} issue${res.issues.length === 1 ? '' : 's'}.`);
       onClose();
     } catch (e) {
       toast.error(e.message || 'Bulk import failed.');
@@ -295,7 +244,7 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
             <label className="import-drop">
               <Upload size={22} />
               <span>Drop a CSV file here, or click to browse</span>
-              <span className="hint">Exported from Google Sheets or any spreadsheet tool — columns named Status, Task Name, Property, Region, Priority, Assignor, Assignee, Description, Link and Attachment are mapped automatically.</span>
+              <span className="hint">Exported from Google Sheets — columns named Property, Task Name, Status, Region, Priority, Due date, Assignor, Assignee, Description, Link and Attachment are mapped automatically.</span>
               <input
                 type="file"
                 accept=".csv,text/csv"
@@ -313,42 +262,22 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
               </label>
 
               <div className="import-map-grid">
+                <MapField label="Property" value={mapping.propertyCol} onChange={(v) => setSingle('propertyCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Task Name (required)" value={mapping.titleCol} onChange={(v) => setSingle('titleCol', v)} columnCount={columnCount} columnLabel={columnLabel} />
                 <MapField label="Status" value={mapping.statusCol} onChange={(v) => setSingle('statusCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
-                <MapField label="Property" value={mapping.propertyCol} onChange={(v) => setSingle('propertyCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Region" value={mapping.regionCol} onChange={(v) => setSingle('regionCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Priority" value={mapping.priorityCol} onChange={(v) => setSingle('priorityCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
+                <MapField label="Due date" value={mapping.dueDateCol} onChange={(v) => setSingle('dueDateCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Assignor" value={mapping.assignorCol} onChange={(v) => setSingle('assignorCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Assignee" value={mapping.assigneeCol} onChange={(v) => setSingle('assigneeCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Description" value={mapping.descCol} onChange={(v) => setSingle('descCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Link" value={mapping.linkCol} onChange={(v) => setSingle('linkCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Attachment" value={mapping.attachmentCol} onChange={(v) => setSingle('attachmentCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
-                <MapField label="Type" value={mapping.typeCol} onChange={(v) => setSingle('typeCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
-                <MapField label="Row #" value={mapping.rowCol} onChange={(v) => setSingle('rowCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
-                <MapField label="Parent row #" value={mapping.parentCol} onChange={(v) => setSingle('parentCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
               </div>
 
-              {mapping.typeCol == null && (
-                <p className="hint">No Type column mapped — every row will be imported as a Task.</p>
-              )}
               {mapping.statusCol == null && (
                 <p className="hint">No Status column mapped — every row will be imported into "{defaultStatus?.name || 'the default status'}".</p>
               )}
-              {mapping.parentCol != null && mapping.rowCol == null && (
-                <p className="hint import-warn"><AlertTriangle size={12} /> Map a "Row #" column too, or parent linking will be ignored.</p>
-              )}
-
-              <div className="field">
-                <span className="field-lbl">Labels (optional, pick any columns)</span>
-                <div className="import-label-cols">
-                  {Array.from({ length: columnCount }, (_, i) => (
-                    <label key={i} className="import-label-col">
-                      <input type="checkbox" checked={mapping.labelCols.includes(i)} onChange={() => toggleLabelCol(i)} />
-                      {columnLabel(i)}
-                    </label>
-                  ))}
-                </div>
-              </div>
 
               {distinctStatusValues.length > 0 && (
                 <div className="field">
@@ -360,25 +289,6 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
                         <div className="selwrap">
                           <select className="sel" value={statusValueMap[v] || ''} onChange={(e) => setStatusOverrides((m) => ({ ...m, [v]: e.target.value || null }))}>
                             {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {distinctTypeValues.length > 0 && (
-                <div className="field">
-                  <span className="field-lbl">Map type values</span>
-                  <div className="import-value-map">
-                    {distinctTypeValues.map((v) => (
-                      <div key={v} className="import-value-row">
-                        <span>{v}</span>
-                        <div className="selwrap">
-                          <select className="sel" value={typeValueMap[v] || ''} onChange={(e) => setTypeOverrides((m) => ({ ...m, [v]: e.target.value || null }))}>
-                            <option value="">Ignore this value</option>
-                            {issueTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                           </select>
                         </div>
                       </div>
@@ -452,11 +362,10 @@ export default function BulkImportModal({ issueTypes, statuses, members, onClose
               </p>
               <div className="import-preview-list">
                 {previewRows.map((r) => (
-                  <div key={r.tempId} className={`import-preview-row ${r.errors.length ? 'has-err' : ''}`} style={{ paddingLeft: 10 + r.level * 20 }}>
+                  <div key={r.rowKey} className={`import-preview-row ${r.errors.length ? 'has-err' : ''}`}>
                     {r.errors.length ? <AlertTriangle size={13} className="warn-ic" /> : <CheckCircle2 size={13} className="ok-ic" />}
-                    <span className="import-row-type">{typesById[r.issueTypeId]?.name || r.rawType || '—'}</span>
+                    <span className="import-row-type">{statusesById[r.statusId]?.name || '—'}</span>
                     <span className="import-row-title">{r.title || '(no title)'}</span>
-                    {r.labelNames.length > 0 && <span className="import-row-labels">{r.labelNames.join(', ')}</span>}
                     {r.errors.length > 0 && <span className="import-row-err">{r.errors.join('; ')}</span>}
                   </div>
                 ))}

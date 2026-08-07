@@ -341,10 +341,7 @@ export const CSS = `
 }
 .import-drop:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-weak);}
 .import-drop .hint{color:var(--muted);}
-.import-warn{color:var(--p-high);display:flex;align-items:center;gap:5px;}
 .import-map-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;}
-.import-label-cols{display:flex;flex-wrap:wrap;gap:8px 14px;}
-.import-label-col{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500;}
 .import-value-map{display:flex;flex-direction:column;gap:7px;max-height:180px;overflow-y:auto;}
 .import-value-row{display:grid;grid-template-columns:1fr 180px;align-items:center;gap:10px;font-size:12.5px;color:var(--ink);}
 .import-preview-list{display:flex;flex-direction:column;gap:2px;max-height:360px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px;}
@@ -354,7 +351,6 @@ export const CSS = `
 .import-preview-row .ok-ic{color:#22c55e;flex:none;}
 .import-row-type{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);flex:none;}
 .import-row-title{font-weight:500;color:var(--ink);}
-.import-row-labels{color:var(--ink-2);font-size:11.5px;margin-left:auto;}
 .import-row-err{color:var(--p-urgent);font-size:11.5px;font-weight:500;}
 .Toastify__toast{
   font-family:var(--font-body);font-size:13.5px;border-radius:11px;

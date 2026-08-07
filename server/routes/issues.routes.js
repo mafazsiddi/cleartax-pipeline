@@ -200,46 +200,16 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
 
   try {
     const created = await db.transaction(async (tx) => {
-      const allTypes = await tx.select().from(issueTypes);
-      const typesById = Object.fromEntries(allTypes.map((t) => [t.id, t]));
-
       const projectStatuses = await tx.select().from(statuses).where(eq(statuses.projectId, req.params.projectId));
       const statusesById = Object.fromEntries(projectStatuses.map((s) => [s.id, s]));
       const defaultStatus = projectStatuses.find((s) => s.isDefault) || projectStatuses[0] || null;
       if (!defaultStatus) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
 
-      const existingLabels = await tx.select().from(labels).where(eq(labels.projectId, req.params.projectId));
-      const labelIdByName = new Map(existingLabels.map((l) => [l.name.toLowerCase(), l.id]));
-      const SWATCHES = ['#8b5cf6', '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#64748b', '#ec4899', '#06b6d4'];
-      let swatchIdx = existingLabels.length;
-
-      // Parents always have a strictly lower hierarchyLevel, so sorting ascending
-      // guarantees every parentTempId resolves before its children are processed.
-      const ordered = [...rows].sort(
-        (a, b) => (typesById[a.issueTypeId]?.hierarchyLevel ?? 0) - (typesById[b.issueTypeId]?.hierarchyLevel ?? 0)
-      );
-
-      const tempIdToReal = new Map(); // tempId -> { id, hierarchyLevel }
       const createdIssues = [];
-      const createdLabels = [];
 
-      for (const row of ordered) {
-        const issueType = typesById[row.issueTypeId];
-        if (!issueType) {
-          throw Object.assign(new Error(`"${row.title || row.tempId}": invalid issue type`), { statusCode: 400 });
-        }
+      for (const row of rows) {
         if (!row.title || !String(row.title).trim()) {
           throw Object.assign(new Error('A row is missing a title'), { statusCode: 400 });
-        }
-
-        let parentId = null;
-        if (row.parentTempId) {
-          const parent = tempIdToReal.get(row.parentTempId);
-          if (!parent) throw Object.assign(new Error(`"${row.title}": parent row not found`), { statusCode: 400 });
-          if (parent.hierarchyLevel + 1 !== issueType.hierarchyLevel) {
-            throw Object.assign(new Error(`"${row.title}" cannot be nested under its mapped parent`), { statusCode: 400 });
-          }
-          parentId = parent.id;
         }
 
         const rowStatus = row.statusId && statusesById[row.statusId] ? statusesById[row.statusId] : defaultStatus;
@@ -250,8 +220,7 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
           .values({
             key,
             projectId: req.params.projectId,
-            issueTypeId: row.issueTypeId,
-            parentId,
+            issueTypeId: 'task',
             statusId: rowStatus.id,
             title: row.title.trim(),
             description: row.description || '',
@@ -259,6 +228,7 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
             assigneeId: row.assigneeId || null,
             assignorId: row.assignorId || null,
             priority: row.priority || 'medium',
+            dueDate: row.dueDate || null,
             property: row.property || null,
             region: row.region || null,
             link: row.link || null,
@@ -266,28 +236,10 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
           })
           .returning();
 
-        if (row.tempId) tempIdToReal.set(row.tempId, { id: inserted.id, hierarchyLevel: issueType.hierarchyLevel });
-
-        for (const rawName of row.labelNames || []) {
-          const name = String(rawName).trim();
-          if (!name) continue;
-          let labelId = labelIdByName.get(name.toLowerCase());
-          if (!labelId) {
-            const [newLabel] = await tx
-              .insert(labels)
-              .values({ projectId: req.params.projectId, name, color: SWATCHES[swatchIdx++ % SWATCHES.length] })
-              .returning();
-            labelId = newLabel.id;
-            labelIdByName.set(name.toLowerCase(), labelId);
-            createdLabels.push(newLabel);
-          }
-          await tx.insert(issueLabels).values({ issueId: inserted.id, labelId }).onConflictDoNothing();
-        }
-
-        createdIssues.push({ issue: inserted, tempId: row.tempId });
+        createdIssues.push({ issue: inserted });
       }
 
-      return { issues: createdIssues, labels: createdLabels };
+      return { issues: createdIssues, labels: [] };
     });
 
     res.json(created);
