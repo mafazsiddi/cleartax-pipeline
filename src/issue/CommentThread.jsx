@@ -19,6 +19,31 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Strips mentions down to "@Name" for display in the plain <textarea> while
+// composing/editing, so the raw @[Name](id) storage format never has to be
+// hand-edited by the user.
+function toDisplayText(raw) {
+  return raw.replace(MENTION_RE, (_, name) => `@${name}`);
+}
+
+// Re-inflates "@Name" back into the @[Name](id) storage format using a
+// registry of mentions the textarea knows about (picked this session, or
+// parsed out of the comment's existing raw body). Longest names are matched
+// first so "Yash More" doesn't get shadowed by a shorter "Yash".
+function toStoredText(display, knownMentions) {
+  let result = display;
+  const sorted = [...knownMentions].sort((a, b) => b.name.length - a.name.length);
+  for (const { id, name } of sorted) {
+    const pattern = new RegExp(`(^|[^\\w@])@${escapeRegExp(name)}(?!\\w)`, 'g');
+    result = result.replace(pattern, (_, pre) => `${pre}@[${name}](${id})`);
+  }
+  return result;
+}
+
 function renderBody(text) {
   const parts = [];
   let lastIndex = 0;
@@ -41,17 +66,27 @@ function mentionQueryAt(text, cursor) {
   return match ? match[1] : null;
 }
 
+// `value`/`onChange` speak the raw @[Name](id) storage format, same as
+// before — but the textarea itself only ever shows "@Name". `value` is read
+// once at mount to seed the display text and the known-mentions registry;
+// after that the component owns its own text and reports raw conversions
+// upward. Callers that need to reset the field (e.g. after posting) should
+// remount via a changing `key` rather than pushing a new `value`.
 function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKeyDown }) {
+  const [text, setText] = useState(() => toDisplayText(value));
   const [query, setQuery] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const taRef = useRef(null);
   const pendingSelection = useRef(null);
+  const knownMentions = useRef(
+    new Map([...value.matchAll(MENTION_RE)].map((m) => [m[1], { id: m[2], name: m[1] }]))
+  );
 
   useEffect(() => {
     if (pendingSelection.current == null || !taRef.current) return;
     taRef.current.setSelectionRange(pendingSelection.current, pendingSelection.current);
     pendingSelection.current = null;
-  }, [value]);
+  }, [text]);
 
   const matches = query === null
     ? []
@@ -59,20 +94,23 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
 
   const handleChange = (e) => {
     const val = e.target.value;
-    onChange(val);
+    setText(val);
+    onChange(toStoredText(val, [...knownMentions.current.values()]));
     const q = mentionQueryAt(val, e.target.selectionStart);
     setQuery(q);
     setActiveIndex(0);
   };
 
   const insertMention = (candidate) => {
+    knownMentions.current.set(candidate.name, { id: candidate.id, name: candidate.name });
     const cursor = taRef.current.selectionStart;
-    const upToCursor = value.slice(0, cursor);
+    const upToCursor = text.slice(0, cursor);
     const start = upToCursor.search(/@[a-zA-Z0-9._-]*$/);
-    const token = `@[${candidate.name}](${candidate.id}) `;
-    const newValue = value.slice(0, start) + token + value.slice(cursor);
+    const token = `@${candidate.name} `;
+    const newText = text.slice(0, start) + token + text.slice(cursor);
     pendingSelection.current = start + token.length;
-    onChange(newValue);
+    setText(newText);
+    onChange(toStoredText(newText, [...knownMentions.current.values()]));
     setQuery(null);
   };
 
@@ -93,7 +131,7 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
         className="in area"
         rows={rows}
         placeholder={placeholder}
-        value={value}
+        value={text}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setQuery(null), 150)}
@@ -118,6 +156,7 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
 
 export default function CommentThread({ comments, currentUser, canComment, mentionCandidates = [], onAdd, onEdit, onDelete }) {
   const [body, setBody] = useState('');
+  const [composerKey, setComposerKey] = useState(0);
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [posting, setPosting] = useState(false);
@@ -128,6 +167,7 @@ export default function CommentThread({ comments, currentUser, canComment, menti
     try {
       await onAdd(body.trim());
       setBody('');
+      setComposerKey((k) => k + 1); // remounts the textarea so its display text actually clears
     } finally {
       setPosting(false);
     }
@@ -185,6 +225,7 @@ export default function CommentThread({ comments, currentUser, canComment, menti
       {canComment && (
         <div className="comment-composer">
           <MentionTextarea
+            key={composerKey}
             value={body}
             onChange={setBody}
             candidates={mentionCandidates}
