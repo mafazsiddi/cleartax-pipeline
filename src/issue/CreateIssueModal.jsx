@@ -11,8 +11,12 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(defaultStatusId || statuses[0]?.id || '');
   const [assigneeId, setAssigneeId] = useState('');
+  const [assignorId, setAssignorId] = useState('');
   const [priority, setPriority] = useState('medium');
   const [dueDate, setDueDate] = useState('');
+  const [property, setProperty] = useState('');
+  const [region, setRegion] = useState('');
+  const [link, setLink] = useState('');
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const titleRef = useRef(null);
@@ -28,7 +32,8 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
     try {
       await onCreate({
         issueTypeId, title: title.trim(), description: description.trim(),
-        statusId, assigneeId: assigneeId || null, priority, dueDate: dueDate || null,
+        statusId, assigneeId: assigneeId || null, assignorId: assignorId || null, priority, dueDate: dueDate || null,
+        property: property.trim() || null, region: region.trim() || null, link: link.trim() || null,
       });
       onClose();
     } catch (e) {
@@ -94,6 +99,18 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
               </div>
             </label>
             <label className="field">
+              <span className="field-lbl">Assignor</span>
+              <div className="selwrap">
+                <select className="sel wide" value={assignorId} onChange={(e) => setAssignorId(e.target.value)}>
+                  <option value="">Unspecified</option>
+                  {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+            </label>
+          </div>
+
+          <div className="row2">
+            <label className="field">
               <span className="field-lbl">Priority</span>
               <div className="selwrap">
                 <select className="sel wide" value={priority} onChange={(e) => setPriority(e.target.value)}>
@@ -101,11 +118,26 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
                 </select>
               </div>
             </label>
+            <label className="field">
+              <span className="field-lbl">Due date</span>
+              <input className="in" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </label>
+          </div>
+
+          <div className="row2">
+            <label className="field">
+              <span className="field-lbl">Property</span>
+              <input className="in" value={property} onChange={(e) => setProperty(e.target.value)} placeholder="e.g. Website, Landing Page" />
+            </label>
+            <label className="field">
+              <span className="field-lbl">Region</span>
+              <input className="in" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Global, Norway" />
+            </label>
           </div>
 
           <label className="field">
-            <span className="field-lbl">Due date</span>
-            <input className="in" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <span className="field-lbl">Link</span>
+            <input className="in" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://docs.google.com/…" />
           </label>
         </div>
 

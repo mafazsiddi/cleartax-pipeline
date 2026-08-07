@@ -24,10 +24,15 @@ function issueSelection() {
     title: issues.title,
     description: issues.description,
     assigneeId: issues.assigneeId,
+    assignorId: issues.assignorId,
     reporterId: issues.reporterId,
     priority: issues.priority,
     dueDate: issues.dueDate,
     storyPoints: issues.storyPoints,
+    property: issues.property,
+    region: issues.region,
+    link: issues.link,
+    attachmentLink: issues.attachmentLink,
     boardOrder: issues.boardOrder,
     createdAt: issues.createdAt,
     updatedAt: issues.updatedAt,
@@ -87,12 +92,12 @@ projectIssuesRouter.get('/', async (req, res) => {
   if (rows.length === 0) return res.json({ issues: [] });
 
   const issueIds = rows.map((r) => r.id);
-  const assigneeIds = [...new Set(rows.map((r) => r.assigneeId).filter(Boolean))];
+  const userIds = [...new Set(rows.flatMap((r) => [r.assigneeId, r.assignorId]).filter(Boolean))];
 
   const [statusRows, userRows, labelRows] = await Promise.all([
     db.select().from(statuses).where(eq(statuses.projectId, req.params.projectId)),
-    assigneeIds.length
-      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, assigneeIds))
+    userIds.length
+      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, userIds))
       : Promise.resolve([]),
     db
       .select({ issueId: issueLabels.issueId, id: labels.id, name: labels.name, color: labels.color })
@@ -109,6 +114,7 @@ projectIssuesRouter.get('/', async (req, res) => {
   const enriched = rows.map((r) => ({
     ...r,
     assigneeName: r.assigneeId ? userMap[r.assigneeId] || null : null,
+    assignorName: r.assignorId ? userMap[r.assignorId] || null : null,
     statusCategory: statusMap[r.statusId]?.category || null,
     labels: labelsByIssue[r.id] || [],
   }));
@@ -116,7 +122,10 @@ projectIssuesRouter.get('/', async (req, res) => {
 });
 
 projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res) => {
-  const { issueTypeId, parentId, statusId, title, description, assigneeId, priority, dueDate, storyPoints } = req.body || {};
+  const {
+    issueTypeId, parentId, statusId, title, description, assigneeId, assignorId, priority, dueDate, storyPoints,
+    property, region, link, attachmentLink,
+  } = req.body || {};
   if (!title || !String(title).trim()) return res.status(400).json({ error: 'Title is required' });
 
   const [issueType] = await db.select().from(issueTypes).where(eq(issueTypes.id, issueTypeId)).limit(1);
@@ -161,10 +170,15 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
           title: title.trim(),
           description: description || '',
           assigneeId: assigneeId || null,
+          assignorId: assignorId || null,
           reporterId: req.user.id,
           priority: priority || 'medium',
           dueDate: dueDate || null,
           storyPoints: storyPoints ?? null,
+          property: property || null,
+          region: region || null,
+          link: link || null,
+          attachmentLink: attachmentLink || null,
         })
         .returning();
       return row;
@@ -189,8 +203,10 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
       const allTypes = await tx.select().from(issueTypes);
       const typesById = Object.fromEntries(allTypes.map((t) => [t.id, t]));
 
-      const status = await resolveDefaultStatus(tx, req.params.projectId);
-      if (!status) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
+      const projectStatuses = await tx.select().from(statuses).where(eq(statuses.projectId, req.params.projectId));
+      const statusesById = Object.fromEntries(projectStatuses.map((s) => [s.id, s]));
+      const defaultStatus = projectStatuses.find((s) => s.isDefault) || projectStatuses[0] || null;
+      if (!defaultStatus) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
 
       const existingLabels = await tx.select().from(labels).where(eq(labels.projectId, req.params.projectId));
       const labelIdByName = new Map(existingLabels.map((l) => [l.name.toLowerCase(), l.id]));
@@ -226,6 +242,8 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
           parentId = parent.id;
         }
 
+        const rowStatus = row.statusId && statusesById[row.statusId] ? statusesById[row.statusId] : defaultStatus;
+
         const key = await nextIssueKey(tx, req.params.projectId);
         const [inserted] = await tx
           .insert(issues)
@@ -234,11 +252,17 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
             projectId: req.params.projectId,
             issueTypeId: row.issueTypeId,
             parentId,
-            statusId: status.id,
+            statusId: rowStatus.id,
             title: row.title.trim(),
             description: row.description || '',
             reporterId: req.user.id,
+            assigneeId: row.assigneeId || null,
+            assignorId: row.assignorId || null,
             priority: row.priority || 'medium',
+            property: row.property || null,
+            region: row.region || null,
+            link: row.link || null,
+            attachmentLink: row.attachmentLink || null,
           })
           .returning();
 
@@ -304,15 +328,23 @@ issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res)
   const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);
   if (!existing) return res.status(404).json({ error: 'Issue not found' });
 
-  const { title, description, assigneeId, priority, dueDate, storyPoints, statusId, boardOrder } = req.body || {};
+  const {
+    title, description, assigneeId, assignorId, priority, dueDate, storyPoints, statusId, boardOrder,
+    property, region, link, attachmentLink,
+  } = req.body || {};
   const patch = { updatedAt: new Date() };
   if (title !== undefined) patch.title = title;
   if (description !== undefined) patch.description = description;
   if (assigneeId !== undefined) patch.assigneeId = assigneeId || null;
+  if (assignorId !== undefined) patch.assignorId = assignorId || null;
   if (priority !== undefined) patch.priority = priority;
   if (dueDate !== undefined) patch.dueDate = dueDate || null;
   if (storyPoints !== undefined) patch.storyPoints = storyPoints;
   if (boardOrder !== undefined) patch.boardOrder = boardOrder;
+  if (property !== undefined) patch.property = property || null;
+  if (region !== undefined) patch.region = region || null;
+  if (link !== undefined) patch.link = link || null;
+  if (attachmentLink !== undefined) patch.attachmentLink = attachmentLink || null;
 
   if (statusId !== undefined && statusId !== existing.statusId) {
     const [status] = await db.select().from(statuses).where(eq(statuses.id, statusId)).limit(1);

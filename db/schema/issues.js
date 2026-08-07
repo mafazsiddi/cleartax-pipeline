@@ -23,12 +23,17 @@ export const issues = pgTable(
     title: text('title').notNull(),
     description: text('description').default(''),
     assigneeId: uuid('assignee_id').references(() => users.id),
+    assignorId: uuid('assignor_id').references(() => users.id),
     reporterId: uuid('reporter_id')
       .notNull()
       .references(() => users.id),
     priority: priorityEnum('priority').notNull().default('medium'),
     dueDate: date('due_date'),
     storyPoints: integer('story_points'),
+    property: text('property'),
+    region: text('region'),
+    link: text('link'),
+    attachmentLink: text('attachment_link'),
     boardOrder: doublePrecision('board_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

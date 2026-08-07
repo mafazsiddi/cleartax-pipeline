@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 const CATEGORIES = ['todo', 'in_progress', 'done'];
@@ -24,6 +24,7 @@ export default function ProjectSettingsPage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +56,42 @@ export default function ProjectSettingsPage() {
       });
       setStatuses((prev) => [...prev, status]);
       setNewStatusName('');
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  const reorderStatus = (from, to) => {
+    setStatuses((prev) => {
+      if (from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const onStatusDragStart = (e, index) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', String(index)); } catch {}
+  };
+
+  const onStatusDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIndex === null || dragIndex === index) return;
+    reorderStatus(dragIndex, index);
+    setDragIndex(index);
+  };
+
+  const onStatusDrop = async (e) => {
+    e.preventDefault();
+    setDragIndex(null);
+    try {
+      const changed = statuses.filter((s, i) => s.order !== i);
+      await Promise.all(changed.map((s) => request(`/statuses/${s.id}`, { method: 'PATCH', body: { order: statuses.indexOf(s) } })));
+      setStatuses((prev) => prev.map((s, i) => ({ ...s, order: i })));
     } catch (e) {
       setErr(e.message);
     }
@@ -116,10 +153,19 @@ export default function ProjectSettingsPage() {
 
       <section className="settings-section">
         <h3 className="settings-h3">Workflow statuses</h3>
-        <p className="hint">These are the board's columns, in order.</p>
+        <p className="hint">These are the board's columns, in order. Drag a row to reposition it.</p>
         <ul className="settings-list">
-          {statuses.map((s) => (
-            <li key={s.id} className="settings-row">
+          {statuses.map((s, i) => (
+            <li
+              key={s.id}
+              className={`settings-row draggable ${dragIndex === i ? 'is-dragging' : ''}`}
+              draggable
+              onDragStart={(e) => onStatusDragStart(e, i)}
+              onDragOver={(e) => onStatusDragOver(e, i)}
+              onDrop={onStatusDrop}
+              onDragEnd={() => setDragIndex(null)}
+            >
+              <span className="drag-handle" aria-hidden="true"><GripVertical size={14} /></span>
               <span className={`status-cat-badge status-cat-${s.category}`}>{s.category.replace('_', ' ')}</span>
               <span className="settings-row-name">{s.name}</span>
               <button className="icon-btn small" onClick={() => deleteStatus(s.id)} title="Delete status" aria-label={`Delete ${s.name}`}>

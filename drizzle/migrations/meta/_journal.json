@@ -15,6 +15,13 @@
       "when": 1785863904213,
       "tag": "0001_sweet_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786085392462,
+      "tag": "0002_amused_bullseye",
+      "breakpoints": true
     }
   ]
 }

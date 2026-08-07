@@ -199,8 +199,12 @@ export const CSS = `
 .prio{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
 .prio-dot{width:6px;height:6px;border-radius:50%;}
 .card-title{font-size:13.5px;font-weight:550;line-height:1.34;margin:0 0 8px;color:var(--ink);letter-spacing:-.005em;}
+.card-meta{font-size:11px;color:var(--muted);font-weight:600;margin:-4px 0 8px;}
 .card-labels{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.card-foot-left{display:flex;align-items:center;gap:6px;min-width:0;}
+.card-link{display:inline-flex;align-items:center;justify-content:center;color:var(--muted);flex:none;}
+.card-link:hover{color:var(--accent);}
 .due{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:3px 7px;border-radius:7px;}
 .due-normal{color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);}
 .due-empty{color:#AEB6C4;background:transparent;border:1px solid var(--line-2);}
@@ -213,6 +217,11 @@ export const CSS = `
 }
 .avatar.unassigned{background:#E4E7EF!important;color:#A6AEBD;box-shadow:none;}
 .avatar.sm{width:28px;height:28px;font-size:11px;}
+.avatar.outline{
+  width:26px;height:26px;background:var(--surface)!important;color:var(--muted);
+  border:1.5px dashed var(--line-2);box-shadow:none;
+}
+.card-people{display:flex;align-items:center;gap:4px;flex:none;}
 
 /* ---- labels ---- */
 .label-chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;}
@@ -375,7 +384,10 @@ export const CSS = `
 .settings-list{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:2px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-radius:8px;}
 .settings-row:hover{background:var(--surface-2);}
+.settings-row.draggable{cursor:grab;}
+.settings-row.is-dragging{opacity:.4;}
 .settings-row-name{font-size:13.5px;font-weight:550;}
+.drag-handle{display:flex;align-items:center;color:#AEB6C4;flex:none;}
 .settings-add-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
 .settings-add-row .in{flex:1;}
 .status-cat-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:3px 7px;border-radius:6px;flex:none;}

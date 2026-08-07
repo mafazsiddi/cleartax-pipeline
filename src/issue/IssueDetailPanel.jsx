@@ -37,9 +37,14 @@ export default function IssueDetailPanel({
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [assignorId, setAssignorId] = useState('');
   const [priority, setPriority] = useState('medium');
   const [dueDate, setDueDate] = useState('');
   const [storyPoints, setStoryPoints] = useState('');
+  const [property, setProperty] = useState('');
+  const [region, setRegion] = useState('');
+  const [link, setLink] = useState('');
+  const [attachmentLink, setAttachmentLink] = useState('');
 
   const markDirty = (setter) => (val) => { setter(val); setDirty(true); };
 
@@ -71,9 +76,14 @@ export default function IssueDetailPanel({
         setDescription(iss.description || '');
         setStatusId(iss.statusId);
         setAssigneeId(iss.assigneeId || '');
+        setAssignorId(iss.assignorId || '');
         setPriority(iss.priority);
         setDueDate(iss.dueDate || '');
         setStoryPoints(iss.storyPoints ?? '');
+        setProperty(iss.property || '');
+        setRegion(iss.region || '');
+        setLink(iss.link || '');
+        setAttachmentLink(iss.attachmentLink || '');
         setComments(commentsData.comments);
         setAttachments(attachmentsData.attachments);
         await refreshChildren(iss);
@@ -96,10 +106,15 @@ export default function IssueDetailPanel({
           title: title.trim(),
           description,
           assigneeId: assigneeId || null,
+          assignorId: assignorId || null,
           priority,
           dueDate: dueDate || null,
           storyPoints: storyPoints === '' ? null : Number(storyPoints),
           statusId,
+          property: property.trim() || null,
+          region: region.trim() || null,
+          link: link.trim() || null,
+          attachmentLink: attachmentLink.trim() || null,
         },
       });
       setIssue((prev) => ({ ...prev, ...updated }));
@@ -306,8 +321,37 @@ export default function IssueDetailPanel({
               </div>
             </label>
             <label className="field">
+              <span className="field-lbl">Assignor</span>
+              <div className="selwrap">
+                <select className="sel wide" value={assignorId} onChange={(e) => markDirty(setAssignorId)(e.target.value)} disabled={!canEdit}>
+                  <option value="">Unspecified</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            </label>
+          </div>
+
+          <div className="row2">
+            <label className="field">
               <span className="field-lbl">Due date</span>
               <input className="in" type="date" value={dueDate} onChange={(e) => markDirty(setDueDate)(e.target.value)} disabled={!canEdit} />
+            </label>
+            <label className="field">
+              <span className="field-lbl">Link</span>
+              <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEdit} placeholder="https://…" />
+            </label>
+          </div>
+
+          <div className="row2">
+            <label className="field">
+              <span className="field-lbl">Property</span>
+              <input className="in" value={property} onChange={(e) => markDirty(setProperty)(e.target.value)} disabled={!canEdit} placeholder="e.g. Website, Landing Page" />
+            </label>
+            <label className="field">
+              <span className="field-lbl">Region</span>
+              <input className="in" value={region} onChange={(e) => markDirty(setRegion)(e.target.value)} disabled={!canEdit} placeholder="e.g. Global, Norway" />
             </label>
           </div>
 
@@ -364,6 +408,18 @@ export default function IssueDetailPanel({
               )}
             </div>
           )}
+
+          <label className="field">
+            <span className="field-lbl">Attachment link</span>
+            <input
+              className="in"
+              type="url"
+              value={attachmentLink}
+              onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
+              disabled={!canEdit}
+              placeholder="Link to an externally-hosted attachment (from import)"
+            />
+          </label>
 
           <div className="field">
             <span className="field-lbl">Attachments</span>
