@@ -212,7 +212,10 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
         attachmentLink: r.attachmentLink || null,
       }));
       const res = await onImport(payload);
-      toast.success(`Imported ${res.issues.length} card${res.issues.length === 1 ? '' : 's'}.`);
+      const downgradeNote = res.downgradedPriorityCount
+        ? ` ${res.downgradedPriorityCount} row${res.downgradedPriorityCount === 1 ? '' : 's'} downgraded to Medium (urgent/high limit reached for that assignor).`
+        : '';
+      toast.success(`Imported ${res.issues.length} card${res.issues.length === 1 ? '' : 's'}.${downgradeNote}`);
       onClose();
     } catch (e) {
       toast.error(e.message || 'Bulk import failed.');

@@ -273,6 +273,7 @@ export default function BoardPage() {
           members={members}
           issueTypes={issueTypes}
           projectLabels={labels}
+          issues={issues}
           onClose={closeIssue}
           onChanged={() => project && loadIssues(project.id)}
           onCreateIssue={createIssue}
@@ -285,6 +286,7 @@ export default function BoardPage() {
         <CreateIssueModal
           statuses={statuses}
           members={members}
+          issues={issues}
           defaultStatusId={createFor}
           onClose={() => setCreateFor(null)}
           onCreate={createIssue}

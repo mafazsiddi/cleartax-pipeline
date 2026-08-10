@@ -53,6 +53,22 @@ export function sortIssues(a, b) {
   return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
 }
 
+// Mirrors server/services/priorityLimit.service.js — keep both in sync.
+export const PRIORITY_LIMITS = { urgent: 1, high: 2 };
+
+// Counts a given assignor's currently-active (non-"done") urgent/high cards,
+// optionally excluding one card's own id (so editing a card doesn't count
+// its own current priority against itself).
+export function activePriorityUsage(issues, assignorId, excludeIssueId) {
+  const mine = issues.filter(
+    (i) => i.assignorId === assignorId && i.statusCategory !== 'done' && i.id !== excludeIssueId
+  );
+  return {
+    urgent: mine.filter((i) => i.priority === 'urgent').length,
+    high: mine.filter((i) => i.priority === 'high').length,
+  };
+}
+
 export function formatBytes(bytes) {
   if (bytes == null) return '';
   if (bytes < 1024) return `${bytes} B`;

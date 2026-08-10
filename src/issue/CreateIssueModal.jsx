@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { PRIORITIES, todayStr } from '../shared/helpers.js';
+import { useAuth } from '../auth/AuthContext.jsx';
+import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr } from '../shared/helpers.js';
 
-export default function CreateIssueModal({ statuses, members, defaultStatusId, onClose, onCreate }) {
+export default function CreateIssueModal({ statuses, members, issues, defaultStatusId, onClose, onCreate }) {
+  const { user } = useAuth();
+  const priorityUsage = activePriorityUsage(issues, user?.id);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(defaultStatusId || statuses[0]?.id || '');
@@ -87,11 +90,18 @@ export default function CreateIssueModal({ statuses, members, defaultStatusId, o
               <span className="field-lbl">Priority</span>
               <div className="selwrap">
                 <select className="sel wide" value={priority} onChange={(e) => setPriority(e.target.value)}>
-                  {PRIORITIES.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {PRIORITIES.map((p) => (
+                    <option key={p.id} value={p.id} disabled={priorityUsage[p.id] >= PRIORITY_LIMITS[p.id]}>
+                      {p.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </label>
           </div>
+          <p className="hint">
+            You have {priorityUsage.urgent}/{PRIORITY_LIMITS.urgent} urgent and {priorityUsage.high}/{PRIORITY_LIMITS.high} high cards active in this project.
+          </p>
 
           <label className="field">
             <span className="field-lbl">Due date</span>

@@ -5,6 +5,7 @@ import { issues, issueTypes, statuses, users, labels, issueLabels } from '../../
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { nextIssueKey } from '../services/issueKey.service.js';
 import { canEditIssue } from '../services/issueAccess.service.js';
+import { PRIORITY_LIMITS, countActivePriority, priorityLimitError } from '../services/priorityLimit.service.js';
 import { sendMail, mailEnabled, mailConfig, assignmentEmail } from '../../lib/mail.js';
 
 const HIERARCHY = { epic: 0, story: 1, task: 1, bug: 1, subtask: 2 };
@@ -159,6 +160,13 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
         if (!status) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
       }
 
+      const finalPriority = priority || 'medium';
+      if (finalPriority === 'urgent' || finalPriority === 'high') {
+        const usage = await countActivePriority(tx, req.params.projectId, req.user.id);
+        const err = priorityLimitError(finalPriority, usage);
+        if (err) throw Object.assign(new Error(err), { statusCode: 400 });
+      }
+
       const key = await nextIssueKey(tx, req.params.projectId);
       const [row] = await tx
         .insert(issues)
@@ -173,7 +181,7 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
           assigneeId: assigneeId || null,
           assignorId: req.user.id,
           reporterId: req.user.id,
-          priority: priority || 'medium',
+          priority: finalPriority,
           dueDate: dueDate || null,
           storyPoints: storyPoints ?? null,
           property: property || null,
@@ -207,6 +215,8 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
       if (!defaultStatus) throw Object.assign(new Error('Project has no workflow statuses'), { statusCode: 400 });
 
       const createdIssues = [];
+      const priorityUsageByAssignor = new Map(); // assignorId -> { urgent, high }, reserved as rows consume slots
+      let downgradedPriorityCount = 0;
 
       for (const row of rows) {
         if (!row.title || !String(row.title).trim()) {
@@ -214,6 +224,20 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
         }
 
         const rowStatus = row.statusId && statusesById[row.statusId] ? statusesById[row.statusId] : defaultStatus;
+
+        let finalPriority = row.priority || 'medium';
+        if ((finalPriority === 'urgent' || finalPriority === 'high') && row.assignorId && rowStatus.category !== 'done') {
+          if (!priorityUsageByAssignor.has(row.assignorId)) {
+            priorityUsageByAssignor.set(row.assignorId, await countActivePriority(tx, req.params.projectId, row.assignorId));
+          }
+          const usage = priorityUsageByAssignor.get(row.assignorId);
+          if (usage[finalPriority] >= PRIORITY_LIMITS[finalPriority]) {
+            finalPriority = 'medium';
+            downgradedPriorityCount++;
+          } else {
+            usage[finalPriority] += 1;
+          }
+        }
 
         const key = await nextIssueKey(tx, req.params.projectId);
         const [inserted] = await tx
@@ -228,7 +252,7 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
             reporterId: req.user.id,
             assigneeId: row.assigneeId || null,
             assignorId: row.assignorId || null,
-            priority: row.priority || 'medium',
+            priority: finalPriority,
             dueDate: row.dueDate || null,
             property: row.property || null,
             region: row.region || null,
@@ -240,7 +264,7 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
         createdIssues.push({ issue: inserted });
       }
 
-      return { issues: createdIssues, labels: [] };
+      return { issues: createdIssues, labels: [], downgradedPriorityCount };
     });
 
     res.json(created);
@@ -293,7 +317,14 @@ issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res)
   if (description !== undefined) patch.description = description;
   if (assigneeId !== undefined) patch.assigneeId = assigneeId || null;
   if (assignorId !== undefined) patch.assignorId = assignorId || null;
-  if (priority !== undefined) patch.priority = priority;
+  if (priority !== undefined) {
+    if (priority !== existing.priority && (priority === 'urgent' || priority === 'high')) {
+      const usage = await countActivePriority(db, existing.projectId, existing.assignorId, existing.id);
+      const err = priorityLimitError(priority, usage);
+      if (err) return res.status(400).json({ error: err });
+    }
+    patch.priority = priority;
+  }
   if (dueDate !== undefined) patch.dueDate = dueDate || null;
   if (storyPoints !== undefined) patch.storyPoints = storyPoints;
   if (boardOrder !== undefined) patch.boardOrder = boardOrder;

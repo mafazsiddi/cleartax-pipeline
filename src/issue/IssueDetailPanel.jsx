@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ArrowUp } from 'lucide-react';
+import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ArrowUp, ExternalLink } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { PRIORITIES, todayStr } from '../shared/helpers.js';
+import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr } from '../shared/helpers.js';
 import ConfirmDialog from '../shared/ConfirmDialog.jsx';
 import LabelPicker from './LabelPicker.jsx';
 import CommentThread from './CommentThread.jsx';
@@ -12,7 +12,7 @@ const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, su
 const CHILD_TYPES_BY_LEVEL = { 0: ['story', 'task', 'bug'], 1: ['subtask'] };
 
 export default function IssueDetailPanel({
-  issueId, projectId, statuses, members, issueTypes, projectLabels,
+  issueId, projectId, statuses, members, issueTypes, projectLabels, issues,
   onClose, onChanged, onCreateIssue, onLabelCreated, onOpenIssue,
 }) {
   const { request, user, token } = useAuth();
@@ -228,6 +228,7 @@ export default function IssueDetailPanel({
   }
 
   const canEditCard = isAdmin || issue.assignorId === user?.id;
+  const priorityUsage = activePriorityUsage(issues, issue.assignorId, issue.id);
   const issueType = issueTypesById[issue.issueTypeId];
   const TypeIcon = TYPE_ICONS[issue.issueTypeId] || CheckSquare;
   const childTypeOptions = (CHILD_TYPES_BY_LEVEL[issueType?.hierarchyLevel] || []).map((id) => issueTypesById[id]).filter(Boolean);
@@ -307,12 +308,17 @@ export default function IssueDetailPanel({
               <div className="selwrap">
                 <select className="sel wide" value={priority} onChange={(e) => markDirty(setPriority)(e.target.value)} disabled={!canEditCard}>
                   {PRIORITIES.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id} disabled={p.id !== priority && priorityUsage[p.id] >= PRIORITY_LIMITS[p.id]}>
+                      {p.name}
+                    </option>
                   ))}
                 </select>
               </div>
             </label>
           </div>
+          <p className="hint">
+            This assignor has {priorityUsage.urgent}/{PRIORITY_LIMITS.urgent} urgent and {priorityUsage.high}/{PRIORITY_LIMITS.high} high cards active elsewhere in this project.
+          </p>
 
           <div className="row2">
             <label className="field">
@@ -341,7 +347,14 @@ export default function IssueDetailPanel({
             </label>
             <label className="field">
               <span className="field-lbl">Link</span>
-              <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEditCard} placeholder="https://…" />
+              <div className="link-input-row">
+                <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEditCard} placeholder="https://…" />
+                {link && (
+                  <a className="link-open-btn" href={link} target="_blank" rel="noopener noreferrer" title="Open link" aria-label="Open link">
+                    <ExternalLink size={15} />
+                  </a>
+                )}
+              </div>
             </label>
           </div>
 
@@ -412,15 +425,21 @@ export default function IssueDetailPanel({
 
           <div className="field">
             <span className="field-lbl">Attachments</span>
-            <input
-              className="in"
-              type="url"
-              value={attachmentLink}
-              onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
-              disabled={!canEditCard}
-              placeholder="Link to an externally-hosted attachment (from import)…"
-              style={{ marginBottom: 8 }}
-            />
+            <div className="link-input-row" style={{ marginBottom: 8 }}>
+              <input
+                className="in"
+                type="url"
+                value={attachmentLink}
+                onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
+                disabled={!canEditCard}
+                placeholder="Link to an externally-hosted attachment (from import)…"
+              />
+              {attachmentLink && (
+                <a className="link-open-btn" href={attachmentLink} target="_blank" rel="noopener noreferrer" title="Open attachment link" aria-label="Open attachment link">
+                  <ExternalLink size={15} />
+                </a>
+              )}
+            </div>
             <AttachmentList
               attachments={attachments}
               canEdit={canEditCard}
