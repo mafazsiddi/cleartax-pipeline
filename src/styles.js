@@ -78,6 +78,26 @@ export const CSS = `
 .brand-sub{font-size:11.5px;color:var(--muted);font-weight:500;margin-top:1px;}
 
 .tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto;}
+
+.notif-wrap{position:relative;}
+.notif-bell{position:relative;}
+.notif-badge{
+  position:absolute;top:2px;right:2px;min-width:15px;height:15px;padding:0 3px;
+  border-radius:20px;background:var(--p-urgent);color:#fff;font-size:9.5px;font-weight:700;
+  display:grid;place-items:center;line-height:1;box-shadow:0 0 0 2px var(--surface);
+}
+.notif-panel{
+  position:absolute;top:100%;right:0;margin-top:8px;width:320px;max-height:400px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+  overflow:hidden;z-index:30;display:flex;flex-direction:column;
+}
+.notif-panel-head{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);padding:11px 14px 7px;}
+.notif-list{list-style:none;margin:0;padding:0 6px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;}
+.notif-item{display:flex;flex-direction:column;gap:3px;padding:8px 8px;border-radius:9px;cursor:pointer;}
+.notif-item:hover{background:var(--surface-2);}
+.notif-item-top{display:flex;align-items:center;justify-content:space-between;}
+.notif-project-key{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--accent);}
+.notif-item-title{font-size:13px;font-weight:550;color:var(--ink);line-height:1.35;}
 .searchbox{position:relative;display:flex;align-items:center;}
 .search-ic{position:absolute;left:10px;color:var(--muted);pointer-events:none;}
 .searchbox input{
@@ -254,19 +274,7 @@ export const CSS = `
 .issue-panel{max-width:640px;}
 .issue-panel-body{max-height:72vh;overflow-y:auto;}
 .issue-title-in{font-size:17px;font-weight:600;font-family:var(--font-display);}
-.parent-link{
-  display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted);
-  background:none;border:none;cursor:pointer;margin-left:10px;padding:2px 6px;border-radius:6px;
-}
-.parent-link:hover{background:var(--line-2);color:var(--ink);}
 .save-row{display:flex;justify-content:flex-end;}
-.child-list{list-style:none;margin:4px 0 8px;padding:0;display:flex;flex-direction:column;gap:2px;}
-.child-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13px;}
-.child-row:hover{background:var(--surface-2);}
-.child-key{font-weight:700;color:var(--muted);font-size:11.5px;}
-.child-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.child-create{display:flex;gap:8px;align-items:center;margin-top:4px;}
-.child-create .in{flex:1;}
 
 /* ---- comments ---- */
 .comment-thread{display:flex;flex-direction:column;gap:12px;}

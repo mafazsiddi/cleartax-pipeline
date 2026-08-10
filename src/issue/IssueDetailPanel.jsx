@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ArrowUp, ExternalLink } from 'lucide-react';
+import { X, Trash2, Check, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ExternalLink } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr } from '../shared/helpers.js';
@@ -10,11 +10,10 @@ import CommentThread from './CommentThread.jsx';
 import AttachmentList from './AttachmentList.jsx';
 
 const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, subtask: CornerDownRight };
-const CHILD_TYPES_BY_LEVEL = { 0: ['story', 'task', 'bug'], 1: ['subtask'] };
 
 export default function IssueDetailPanel({
   issueId, projectId, statuses, members, issueTypes, projectLabels, issues,
-  onClose, onChanged, onCreateIssue, onLabelCreated, onOpenIssue,
+  onClose, onChanged, onLabelCreated,
 }) {
   const { request, user, token } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -23,7 +22,6 @@ export default function IssueDetailPanel({
   const issueTypesById = Object.fromEntries(issueTypes.map((t) => [t.id, t]));
 
   const [issue, setIssue] = useState(null);
-  const [children, setChildren] = useState([]);
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,10 +29,7 @@ export default function IssueDetailPanel({
   const [dirty, setDirty] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [addingChild, setAddingChild] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [childTitle, setChildTitle] = useState('');
-  const [childType, setChildType] = useState('subtask');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -50,16 +45,6 @@ export default function IssueDetailPanel({
   const [attachmentLink, setAttachmentLink] = useState('');
 
   const markDirty = (setter) => (val) => { setter(val); setDirty(true); };
-
-  const refreshChildren = useCallback(async (iss) => {
-    const type = issueTypesById[iss.issueTypeId];
-    if (type && type.hierarchyLevel < 2) {
-      const data = await request(`/issues/${iss.id}/children`);
-      setChildren(data.issues);
-    } else {
-      setChildren([]);
-    }
-  }, [request, issueTypesById]);
 
   useEffect(() => {
     let alive = true;
@@ -89,7 +74,6 @@ export default function IssueDetailPanel({
         setAttachmentLink(iss.attachmentLink || '');
         setComments(commentsData.comments);
         setAttachments(attachmentsData.attachments);
-        await refreshChildren(iss);
       } catch (err) {
         console.error('Failed to load issue:', err);
       } finally {
@@ -234,14 +218,6 @@ export default function IssueDetailPanel({
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const addChild = async () => {
-    if (!childTitle.trim()) return;
-    await onCreateIssue({ issueTypeId: childType, title: childTitle.trim(), parentId: issueId });
-    await refreshChildren(issue);
-    setChildTitle('');
-    setAddingChild(false);
-  };
-
   if (loading || !issue) {
     return (
       <div className="overlay" onMouseDown={onClose}>
@@ -258,8 +234,6 @@ export default function IssueDetailPanel({
   const priorityUsage = activePriorityUsage(issues, issue.assignorId, issue.id);
   const issueType = issueTypesById[issue.issueTypeId];
   const TypeIcon = TYPE_ICONS[issue.issueTypeId] || CheckSquare;
-  const childTypeOptions = (CHILD_TYPES_BY_LEVEL[issueType?.hierarchyLevel] || []).map((id) => issueTypesById[id]).filter(Boolean);
-  const parent = issue.parent || null;
 
   return (
     <>
@@ -270,11 +244,6 @@ export default function IssueDetailPanel({
             <span className="issue-type" style={{ color: issueType?.color }}>
               <TypeIcon size={14} /> {issue.key}
             </span>
-            {parent && (
-              <button className="parent-link" onClick={() => onOpenIssue(parent.key)}>
-                <ArrowUp size={11} /> {parent.key}
-              </button>
-            )}
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             <X size={18} />
@@ -401,52 +370,6 @@ export default function IssueDetailPanel({
               <button className="btn primary" disabled={!dirty || saving} onClick={save}>
                 <Check size={15} /> {saving ? 'Saving…' : 'Save changes'}
               </button>
-            </div>
-          )}
-
-          {childTypeOptions.length > 0 && (
-            <div className="field">
-              <span className="field-lbl">{issueType?.hierarchyLevel === 0 ? 'Child cards' : 'Subtasks'}</span>
-              <ul className="child-list">
-                {children.map((c) => {
-                  const ChildIcon = TYPE_ICONS[c.issueTypeId] || CheckSquare;
-                  return (
-                    <li key={c.id} className="child-row" onClick={() => onOpenIssue(c.key)}>
-                      <ChildIcon size={13} />
-                      <span className="child-key">{c.key}</span>
-                      <span className="child-title">{c.title}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-              {canEditCard && !addingChild && (
-                <button className="label-add-btn" onClick={() => { setAddingChild(true); setChildType(childTypeOptions[0].id); }}>
-                  <Plus size={12} /> Add {issueType?.hierarchyLevel === 0 ? 'child card' : 'subtask'}
-                </button>
-              )}
-              {addingChild && (
-                <div className="child-create">
-                  {childTypeOptions.length > 1 && (
-                    <div className="selwrap">
-                      <select className="sel" value={childType} onChange={(e) => setChildType(e.target.value)}>
-                        {childTypeOptions.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  <input
-                    className="in"
-                    autoFocus
-                    placeholder="Title"
-                    value={childTitle}
-                    onChange={(e) => setChildTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addChild()}
-                  />
-                  <button className="btn primary" onClick={addChild}>Add</button>
-                  <button className="btn ghost" onClick={() => setAddingChild(false)}>Cancel</button>
-                </div>
-              )}
             </div>
           )}
 

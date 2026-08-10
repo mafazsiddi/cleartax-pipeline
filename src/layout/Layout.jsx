@@ -4,6 +4,7 @@ import { LayoutGrid, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { avatarColor, initials } from '../shared/helpers.js';
 import Sidebar from './Sidebar.jsx';
+import NotificationsBell from './NotificationsBell.jsx';
 
 export default function Layout() {
   const { request, user, logout } = useAuth();
@@ -47,6 +48,7 @@ export default function Layout() {
             </div>
           </div>
           <div className="tools">
+            <NotificationsBell />
             <span className="avatar sm" style={{ background: avatarColor(user?.name) }} title={user?.email}>
               {initials(user?.name)}
             </span>

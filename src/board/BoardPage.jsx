@@ -275,9 +275,7 @@ export default function BoardPage() {
           issues={issues}
           onClose={closeIssue}
           onChanged={() => project && loadIssues(project.id)}
-          onCreateIssue={createIssue}
           onLabelCreated={(label) => setLabels((prev) => [...prev, label])}
-          onOpenIssue={openIssue}
         />
       )}
 

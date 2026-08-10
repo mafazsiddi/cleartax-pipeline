@@ -3,6 +3,7 @@ import cors from 'cors';
 
 import authRoutes from './routes/auth.routes.js';
 import usersRoutes from './routes/users.routes.js';
+import meRoutes from './routes/me.routes.js';
 import projectsRoutes from './routes/projects.routes.js';
 import { projectStatusesRouter, statusByIdRouter } from './routes/statuses.routes.js';
 import issueTypesRoutes from './routes/issueTypes.routes.js';
@@ -23,6 +24,7 @@ export function createApp() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
+  app.use('/api/me', meRoutes);
 
   app.use('/api/projects/:projectId/statuses', projectStatusesRouter);
   app.use('/api/projects/:projectId/issues', projectIssuesRouter);
