@@ -30,7 +30,6 @@ export default function BoardPage() {
   const [query, setQuery] = useState('');
   const [fAssignee, setFAssignee] = useState('all');
   const [fPriority, setFPriority] = useState('all');
-  const [fType, setFType] = useState('all');
 
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -43,10 +42,9 @@ export default function BoardPage() {
     const params = new URLSearchParams();
     if (fAssignee !== 'all' && fAssignee !== '__none') params.set('assigneeId', fAssignee);
     if (fPriority !== 'all') params.set('priority', fPriority);
-    if (fType !== 'all') params.set('issueTypeId', fType);
     const data = await request(`/projects/${projectId}/issues?${params.toString()}`);
     setIssues(data.issues);
-  }, [request, fAssignee, fPriority, fType]);
+  }, [request, fAssignee, fPriority]);
 
   // Initial project + reference data load.
   useEffect(() => {
@@ -86,7 +84,7 @@ export default function BoardPage() {
     if (!project) return;
     loadIssues(project.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fAssignee, fPriority, fType]);
+  }, [fAssignee, fPriority]);
 
   const modalOpen = !!openIssueId || !!createFor || bulkImportOpen;
   usePolling(() => project && loadIssues(project.id), {
@@ -94,7 +92,7 @@ export default function BoardPage() {
     paused: () => modalOpen || !!dragId,
   });
 
-  const filtersActive = query.trim() || fAssignee !== 'all' || fPriority !== 'all' || fType !== 'all';
+  const filtersActive = query.trim() || fAssignee !== 'all' || fPriority !== 'all';
   const visible = useMemo(() => {
     return issues.filter((i) => {
       if (i.parentId) return false; // subtasks live inside their parent's panel, not on the board
@@ -186,13 +184,6 @@ export default function BoardPage() {
               <option value="all">Everyone</option>
               <option value="__none">Unassigned</option>
               {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
-
-          <div className="selwrap">
-            <select className="sel" value={fType} onChange={(e) => setFType(e.target.value)} aria-label="Filter by type">
-              <option value="all">Any type</option>
-              {issueTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
 
@@ -292,7 +283,6 @@ export default function BoardPage() {
 
       {createFor && (
         <CreateIssueModal
-          issueTypes={issueTypes}
           statuses={statuses}
           members={members}
           defaultStatusId={createFor}

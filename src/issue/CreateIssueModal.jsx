@@ -2,11 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { PRIORITIES, todayStr } from '../shared/helpers.js';
 
-const TOP_LEVEL_TYPES = ['epic', 'story', 'task', 'bug'];
-
-export default function CreateIssueModal({ issueTypes, statuses, members, defaultStatusId, onClose, onCreate }) {
-  const creatable = issueTypes.filter((t) => TOP_LEVEL_TYPES.includes(t.id));
-  const [issueTypeId, setIssueTypeId] = useState(creatable.find((t) => t.id === 'task')?.id || creatable[0]?.id || '');
+export default function CreateIssueModal({ statuses, members, defaultStatusId, onClose, onCreate }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState(defaultStatusId || statuses[0]?.id || '');
@@ -30,7 +26,7 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
     setSaving(true);
     try {
       await onCreate({
-        issueTypeId, title: title.trim(), description: description.trim(),
+        issueTypeId: 'task', title: title.trim(), description: description.trim(),
         statusId, assigneeId: assigneeId || null, priority, dueDate: dueDate || null,
         property: property.trim() || null, region: region.trim() || null, link: link.trim() || null,
       });
@@ -51,24 +47,14 @@ export default function CreateIssueModal({ issueTypes, statuses, members, defaul
         </div>
 
         <div className="modal-body">
-          <div className="row2">
-            <label className="field">
-              <span className="field-lbl">Type</span>
-              <div className="selwrap">
-                <select className="sel wide" value={issueTypeId} onChange={(e) => setIssueTypeId(e.target.value)}>
-                  {creatable.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-            </label>
-            <label className="field">
-              <span className="field-lbl">Status</span>
-              <div className="selwrap">
-                <select className="sel wide" value={statusId} onChange={(e) => setStatusId(e.target.value)}>
-                  {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-            </label>
-          </div>
+          <label className="field">
+            <span className="field-lbl">Status</span>
+            <div className="selwrap">
+              <select className="sel wide" value={statusId} onChange={(e) => setStatusId(e.target.value)}>
+                {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </label>
 
           <label className="field">
             <span className="field-lbl">Title</span>
