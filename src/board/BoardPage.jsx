@@ -16,7 +16,6 @@ export default function BoardPage() {
   const navigate = useNavigate();
   const { request, user } = useAuth();
   const canEdit = user?.role === 'admin' || user?.role === 'member';
-  const isAdmin = user?.role === 'admin';
 
   const [project, setProject] = useState(null);
   const [statuses, setStatuses] = useState([]);
@@ -244,7 +243,7 @@ export default function BoardPage() {
                       issue={issue}
                       issueType={issueTypesById[issue.issueTypeId]}
                       dragging={dragId === issue.id}
-                      canDrag={isAdmin || issue.assignorId === user?.id}
+                      canDrag={canEdit}
                       onOpen={() => openIssue(issue.key)}
                       onDragStart={(e) => onCardDragStart(e, issue.id)}
                       onDragEnd={endDrag}

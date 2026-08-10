@@ -301,10 +301,17 @@ issueByIdRouter.get('/:id/children', async (req, res) => {
   res.json({ issues: rows });
 });
 
+// Any member can move a card between statuses or set its attachment link —
+// everything else (title, description, priority, assignee, etc.) is locked
+// to the assignor/admin. A request only needs the ownership check when it
+// touches a field outside this allowlist.
+const ALWAYS_EDITABLE_FIELDS = new Set(['statusId', 'attachmentLink']);
+
 issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res) => {
   const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);
   if (!existing) return res.status(404).json({ error: 'Issue not found' });
-  if (!canEditIssue(req.user, existing)) {
+  const touchesRestrictedField = Object.keys(req.body || {}).some((k) => !ALWAYS_EDITABLE_FIELDS.has(k));
+  if (touchesRestrictedField && !canEditIssue(req.user, existing)) {
     return res.status(403).json({ error: 'Only the assignor or an admin can edit this card' });
   }
 

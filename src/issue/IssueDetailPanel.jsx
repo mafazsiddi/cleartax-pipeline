@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-toastify';
 import { X, Trash2, Check, Plus, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ArrowUp, ExternalLink } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -111,11 +112,9 @@ export default function IssueDetailPanel({
           priority,
           dueDate: dueDate || null,
           storyPoints: storyPoints === '' ? null : Number(storyPoints),
-          statusId,
           property: property.trim() || null,
           region: region.trim() || null,
           link: link.trim() || null,
-          attachmentLink: attachmentLink.trim() || null,
         },
       });
       setIssue((prev) => ({ ...prev, ...updated }));
@@ -123,6 +122,34 @@ export default function IssueDetailPanel({
       onChanged?.();
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Status and the attachment link save immediately on change — any member
+  // (not just the assignor/admin) can touch these two, unlike the rest of
+  // the form, which is gated behind canEditCard + the Save button above.
+  const changeStatus = async (newStatusId) => {
+    const prevStatusId = statusId;
+    setStatusId(newStatusId);
+    try {
+      const { issue: updated } = await request(`/issues/${issueId}`, { method: 'PATCH', body: { statusId: newStatusId } });
+      setIssue((prev) => ({ ...prev, ...updated }));
+      onChanged?.();
+    } catch (err) {
+      setStatusId(prevStatusId);
+      toast.error(err.message || 'Could not change status.');
+    }
+  };
+
+  const saveAttachmentLink = async () => {
+    try {
+      const { issue: updated } = await request(`/issues/${issueId}`, {
+        method: 'PATCH',
+        body: { attachmentLink: attachmentLink.trim() || null },
+      });
+      setIssue((prev) => ({ ...prev, ...updated }));
+    } catch (err) {
+      toast.error(err.message || 'Could not save the attachment link.');
     }
   };
 
@@ -264,8 +291,8 @@ export default function IssueDetailPanel({
             />
           </label>
 
-          {!canEditCard && (
-            <p className="hint">Only {members.find((m) => m.id === issue.assignorId)?.name || 'the assignor'} or an admin can edit this card. You can still comment below.</p>
+          {!canEditCard && canComment && (
+            <p className="hint">Only {members.find((m) => m.id === issue.assignorId)?.name || 'the assignor'} or an admin can edit this card's details. You can still change its status, add attachments, and comment.</p>
           )}
 
           <label className="field">
@@ -296,7 +323,7 @@ export default function IssueDetailPanel({
             <label className="field">
               <span className="field-lbl">Status</span>
               <div className="selwrap">
-                <select className="sel wide" value={statusId} onChange={(e) => markDirty(setStatusId)(e.target.value)} disabled={!canEditCard}>
+                <select className="sel wide" value={statusId} onChange={(e) => changeStatus(e.target.value)} disabled={!canComment}>
                   {statuses.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -430,8 +457,9 @@ export default function IssueDetailPanel({
                 className="in"
                 type="url"
                 value={attachmentLink}
-                onChange={(e) => markDirty(setAttachmentLink)(e.target.value)}
-                disabled={!canEditCard}
+                onChange={(e) => setAttachmentLink(e.target.value)}
+                onBlur={saveAttachmentLink}
+                disabled={!canComment}
                 placeholder="Link to an externally-hosted attachment (from import)…"
               />
               {attachmentLink && (
@@ -442,7 +470,7 @@ export default function IssueDetailPanel({
             </div>
             <AttachmentList
               attachments={attachments}
-              canEdit={canEditCard}
+              canEdit={canComment}
               canDelete={canDelete}
               uploading={uploading}
               uploadError={uploadError}
