@@ -364,7 +364,7 @@ export const CSS = `
 
 /* ---- team / users admin ---- */
 .hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin:-4px 0 0;}
-.member-list{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:320px;overflow-y:auto;}
+.member-list{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;min-height:320px;overflow-y:auto;}
 .member-row{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:9px;transition:background .12s;}
 .member-row:hover{background:var(--surface-2);}
 .member-block{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;}
