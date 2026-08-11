@@ -476,6 +476,10 @@ export const CSS = `
   .btn-lbl{display:none;}
   .row2{grid-template-columns:1fr;}
   .board{padding:14px 12px 18px;}
+  .notif-panel{
+    position:fixed;top:60px;left:10px;right:10px;margin-top:0;
+    width:auto;max-width:none;max-height:calc(100vh - 76px);
+  }
 }
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;}
