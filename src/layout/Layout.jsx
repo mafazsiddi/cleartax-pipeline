@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
-import { LayoutGrid, LogOut } from 'lucide-react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { LayoutGrid, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { avatarColor, initials } from '../shared/helpers.js';
 import Sidebar from './Sidebar.jsx';
@@ -10,6 +10,12 @@ export default function Layout() {
   const { request, user, logout } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const refreshProjects = useCallback(async () => {
     const data = await request('/projects');
@@ -38,9 +44,13 @@ export default function Layout() {
 
   return (
     <div className="app shell">
-      <Sidebar projects={projects} loading={loadingProjects} onCreateProject={createProject} />
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <Sidebar projects={projects} loading={loadingProjects} onCreateProject={createProject} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="main-col">
         <header className="topbar">
+          <button className="menu-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+            <Menu size={19} />
+          </button>
           <div className="brand">
             <span className="mark" aria-hidden="true"><LayoutGrid size={16} strokeWidth={2.4} /></span>
             <div className="brand-txt">

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Plus, Users, Settings } from 'lucide-react';
+import { Plus, Users, Settings, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 
-export default function Sidebar({ projects, loading, onCreateProject }) {
+export default function Sidebar({ projects, loading, onCreateProject, open, onClose }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [creating, setCreating] = useState(false);
@@ -28,7 +28,10 @@ export default function Sidebar({ projects, loading, onCreateProject }) {
   };
 
   return (
-    <nav className="sidebar">
+    <nav className={`sidebar ${open ? 'open' : ''}`}>
+      <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+        <X size={17} />
+      </button>
       <div className="sidebar-section-lbl">Projects</div>
       <ul className="sidebar-list">
         {projects.map((p) => (
