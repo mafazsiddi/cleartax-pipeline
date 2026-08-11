@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { eq, and, or, ilike, asc, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { issues, issueTypes, statuses, users, labels, issueLabels } from '../../db/schema/index.js';
+import { issues, issueTypes, statuses, users, labels, issueLabels, projects } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { nextIssueKey } from '../services/issueKey.service.js';
 import { canEditIssue } from '../services/issueAccess.service.js';
 import { PRIORITY_LIMITS, countActivePriority, priorityLimitError } from '../services/priorityLimit.service.js';
+import { createNotifications } from '../services/notify.service.js';
 import { sendMail, mailEnabled, mailConfig, assignmentEmail } from '../../lib/mail.js';
 
 const HIERARCHY = { epic: 0, story: 1, task: 1, bug: 1, subtask: 2 };
@@ -48,18 +49,31 @@ function issueSelection() {
  * more than the email going out.
  */
 async function notifyAssignment(issue, previousAssigneeId, req) {
+  if (!issue.assigneeId || issue.assigneeId === previousAssigneeId) return;
+
+  await createNotifications({
+    recipientIds: [issue.assigneeId],
+    actorId: req.user?.id || null,
+    type: 'assignment',
+    issueId: issue.id,
+    preview: issue.title,
+  });
+
   try {
-    if (!issue.assigneeId || issue.assigneeId === previousAssigneeId) return;
     if (!mailEnabled()) return;
 
     const [assignee] = await db.select().from(users).where(eq(users.id, issue.assigneeId)).limit(1);
     if (!assignee?.email) return;
 
-    const [status] = await db.select().from(statuses).where(eq(statuses.id, issue.statusId)).limit(1);
+    const [[status], [project]] = await Promise.all([
+      db.select().from(statuses).where(eq(statuses.id, issue.statusId)).limit(1),
+      db.select({ key: projects.key }).from(projects).where(eq(projects.id, issue.projectId)).limit(1),
+    ]);
     const { appUrl } = mailConfig();
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const proto = req.headers['x-forwarded-proto'] || 'https';
-    const link = appUrl || (host ? `${proto}://${host}` : '');
+    const base = appUrl || (host ? `${proto}://${host}` : '');
+    const link = base && project ? `${base}/projects/${project.key}/board/${issue.key}` : base;
 
     const tpl = assignmentEmail({
       issue,

@@ -153,7 +153,7 @@ needed** — the provider signs the mail, and SPF/DKIM align automatically.
 | `SMTP_PASS` | Yes | A **Google App Password**, not the account password. Spaces are stripped, so you can paste it as shown. |
 | `MAIL_FROM` | Recommended | Must match `SMTP_USER`, e.g. `Mira <demandgen@cleartax.com>`. Gmail rewrites a mismatched From to the authenticated mailbox. |
 | `MAIL_REPLY_TO` | Optional | Where replies should land, if not the sending mailbox. |
-| `MIRA_APP_URL` | Optional | Public app URL for the "Open the board" button. Falls back to the request's host. |
+| `MIRA_APP_URL` | Optional | Public app URL emails link back to (deep-linked to the specific card), e.g. `https://cleartax.email/mira`. Falls back to the request's host, without the `/mira` prefix. |
 
 **Getting a Google App Password:** 2-Step Verification must be on for the account, then
 visit [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords). If the

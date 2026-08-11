@@ -7,5 +7,6 @@ export * from './issueTypes.js';
 export * from './issues.js';
 export * from './labels.js';
 export * from './comments.js';
+export * from './notifications.js';
 export * from './attachments.js';
 export * from './relations.js';

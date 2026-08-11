@@ -6,6 +6,7 @@ import { issueTypes } from './issueTypes.js';
 import { issues } from './issues.js';
 import { labels, issueLabels } from './labels.js';
 import { comments } from './comments.js';
+import { notifications } from './notifications.js';
 import { attachments } from './attachments.js';
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -14,6 +15,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   attachments: many(attachments),
   projectsLed: many(projects),
+  notificationsReceived: many(notifications, { relationName: 'recipient' }),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -43,6 +45,7 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
   comments: many(comments),
   attachments: many(attachments),
   issueLabels: many(issueLabels),
+  notifications: many(notifications),
 }));
 
 export const labelsRelations = relations(labels, ({ one, many }) => ({
@@ -63,4 +66,10 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   issue: one(issues, { fields: [attachments.issueId], references: [issues.id] }),
   uploader: one(users, { fields: [attachments.uploaderId], references: [users.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  issue: one(issues, { fields: [notifications.issueId], references: [issues.id] }),
+  recipient: one(users, { fields: [notifications.recipientId], references: [users.id], relationName: 'recipient' }),
+  actor: one(users, { fields: [notifications.actorId], references: [users.id] }),
 }));

@@ -1,23 +1,16 @@
-import React, { useState, useRef, useEffect, Fragment } from 'react';
-import { Send, Pencil, Trash2, X, Check } from 'lucide-react';
-import { avatarColor, initials } from '../shared/helpers.js';
+import React, { useState, useRef, useEffect, Fragment, Suspense, lazy } from 'react';
+import { Send, Pencil, Trash2, X, Check, Smile } from 'lucide-react';
+import { avatarColor, initials, timeAgo } from '../shared/helpers.js';
+
+// The full emoji dataset is a heavy dependency (~200KB gzipped) that most
+// comments never touch, so it's split into its own chunk and only fetched
+// once someone actually opens the picker.
+const EmojiPicker = lazy(() => import('emoji-picker-react'));
 
 // Mentions are stored inline as `@[Display Name](userId)`, inserted only by
 // the picker below — never hand-typed — so both the server and the renderer
 // can parse them exactly instead of guessing at freeform "@name" text.
 const MENTION_RE = /@\[([^\]]+)\]\(([^)]+)\)/g;
-
-function timeAgo(iso) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -76,7 +69,9 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
   const [text, setText] = useState(() => toDisplayText(value));
   const [query, setQuery] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const taRef = useRef(null);
+  const wrapRef = useRef(null);
   const pendingSelection = useRef(null);
   const knownMentions = useRef(
     new Map([...value.matchAll(MENTION_RE)].map((m) => [m[1], { id: m[2], name: m[1] }]))
@@ -87,6 +82,18 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
     taRef.current.setSelectionRange(pendingSelection.current, pendingSelection.current);
     pendingSelection.current = null;
   }, [text]);
+
+  // The emoji picker has its own search input that needs real focus, so it
+  // can't reuse the textarea's onBlur-to-close trick like the mention menu
+  // does — it closes on an outside click instead.
+  useEffect(() => {
+    if (!emojiOpen) return;
+    const onClickAway = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setEmojiOpen(false);
+    };
+    document.addEventListener('mousedown', onClickAway);
+    return () => document.removeEventListener('mousedown', onClickAway);
+  }, [emojiOpen]);
 
   const matches = query === null
     ? []
@@ -114,6 +121,17 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
     setQuery(null);
   };
 
+  const insertEmoji = (emojiData) => {
+    const emoji = emojiData.emoji;
+    const cursor = taRef.current ? taRef.current.selectionStart : text.length;
+    const newText = text.slice(0, cursor) + emoji + text.slice(cursor);
+    pendingSelection.current = cursor + emoji.length;
+    setText(newText);
+    onChange(toStoredText(newText, [...knownMentions.current.values()]));
+    setEmojiOpen(false);
+    taRef.current?.focus();
+  };
+
   const handleKeyDown = (e) => {
     if (query !== null && matches.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex((i) => (i + 1) % matches.length); return; }
@@ -125,7 +143,7 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
   };
 
   return (
-    <div className="mention-input-wrap">
+    <div className="mention-input-wrap" ref={wrapRef}>
       <textarea
         ref={taRef}
         className="in area"
@@ -136,6 +154,30 @@ function MentionTextarea({ value, onChange, candidates, placeholder, rows, onKey
         onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setQuery(null), 150)}
       />
+      <button
+        type="button"
+        className="emoji-trigger"
+        aria-label="Insert emoji"
+        title="Insert emoji"
+        onClick={() => setEmojiOpen((o) => !o)}
+      >
+        <Smile size={14} />
+      </button>
+      {emojiOpen && (
+        <div className="emoji-popover">
+          <Suspense fallback={<div className="emoji-popover-loading">Loading…</div>}>
+            <EmojiPicker
+              onEmojiClick={insertEmoji}
+              emojiStyle="native"
+              theme="light"
+              autoFocusSearch={false}
+              previewConfig={{ showPreview: false }}
+              width={300}
+              height={360}
+            />
+          </Suspense>
+        </div>
+      )}
       {query !== null && matches.length > 0 && (
         <ul className="mention-menu">
           {matches.map((c, i) => (

@@ -1,44 +1,72 @@
 import { Router } from 'express';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { comments, users, issues } from '../../db/schema/index.js';
+import { comments, users, issues, projects } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { createNotifications } from '../services/notify.service.js';
 import { sendMail, mailEnabled, mailConfig, mentionEmail } from '../../lib/mail.js';
 
 // Comment bodies store mentions as `@[Display Name](userId)` — inserted by the
 // mention picker in the composer, never hand-typed — so parsing is exact
 // instead of guessing at freeform "@name" text.
 const MENTION_RE = /@\[([^\]]+)\]\(([^)]+)\)/g;
+const PREVIEW_LEN = 140;
 
 function plainText(body) {
   return body.replace(MENTION_RE, (_, name) => `@${name}`);
 }
 
+function preview(body) {
+  const text = plainText(body);
+  return text.length > PREVIEW_LEN ? `${text.slice(0, PREVIEW_LEN)}…` : text;
+}
+
 /**
- * Emails everyone newly @mentioned in a comment. Never throws — the comment
- * is already saved by the time this runs, and a mail failure shouldn't look
- * like the comment failed to post.
+ * Notifies everyone a new comment concerns: the card's assignee (in-app
+ * only) and anyone freshly @mentioned (in-app + email). Never throws — the
+ * comment is already saved by the time this runs.
  */
-async function notifyMentions(commentBody, issueId, author, req) {
+async function notifyComment(commentBody, issue, author, req) {
   try {
-    if (!mailEnabled()) return;
     const mentionedIds = [...new Set([...commentBody.matchAll(MENTION_RE)].map((m) => m[2]))]
       .filter((id) => id !== author.id);
-    if (mentionedIds.length === 0) return;
+    const commentPreview = preview(commentBody);
 
-    const [issue, mentionedUsers] = await Promise.all([
-      db.select({ key: issues.key, title: issues.title }).from(issues).where(eq(issues.id, issueId)).limit(1),
-      db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, mentionedIds)),
-    ]);
-    if (!issue[0] || mentionedUsers.length === 0) return;
+    await createNotifications({
+      recipientIds: mentionedIds,
+      actorId: author.id,
+      type: 'mention',
+      issueId: issue.id,
+      preview: commentPreview,
+    });
+
+    // The assignee hears about every comment on their card, unless they were
+    // already just notified as a mention above.
+    if (issue.assigneeId && !mentionedIds.includes(issue.assigneeId)) {
+      await createNotifications({
+        recipientIds: [issue.assigneeId],
+        actorId: author.id,
+        type: 'comment',
+        issueId: issue.id,
+        preview: commentPreview,
+      });
+    }
+
+    if (!mailEnabled() || mentionedIds.length === 0) return;
+    const mentionedUsers = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(inArray(users.id, mentionedIds));
+    if (mentionedUsers.length === 0) return;
 
     const { appUrl } = mailConfig();
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const proto = req.headers['x-forwarded-proto'] || 'https';
-    const link = appUrl || (host ? `${proto}://${host}` : '');
+    const base = appUrl || (host ? `${proto}://${host}` : '');
+    const link = base && issue.projectKey ? `${base}/projects/${issue.projectKey}/board/${issue.key}` : base;
 
     const tpl = mentionEmail({
-      issue: issue[0],
+      issue,
       mentionedBy: author.name,
       commentText: plainText(commentBody),
       appUrl: link,
@@ -49,7 +77,7 @@ async function notifyMentions(commentBody, issueId, author, req) {
         .map((u) => sendMail({ to: u.email, subject: tpl.subject, html: tpl.html, text: tpl.text }))
     );
   } catch (err) {
-    console.error('[mail] Mention notification failed:', err.message);
+    console.error('[notifications] Comment notification failed:', err.message);
   }
 }
 
@@ -79,7 +107,21 @@ issueCommentsRouter.post('/', requireRole(['member', 'admin']), async (req, res)
     .insert(comments)
     .values({ issueId: req.params.issueId, authorId: req.user.id, body })
     .returning();
-  await notifyMentions(body, req.params.issueId, req.user, req);
+
+  const [issue] = await db
+    .select({
+      id: issues.id,
+      key: issues.key,
+      title: issues.title,
+      assigneeId: issues.assigneeId,
+      projectKey: projects.key,
+    })
+    .from(issues)
+    .innerJoin(projects, eq(issues.projectId, projects.id))
+    .where(eq(issues.id, req.params.issueId))
+    .limit(1);
+  if (issue) await notifyComment(body, issue, req.user, req);
+
   res.json({ comment: { ...created, author: req.user } });
 });
 

@@ -1,9 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Calendar } from 'lucide-react';
+import { Bell, UserPlus, MessageSquare, AtSign } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { usePolling } from '../hooks/usePolling.js';
-import { PMAP, dueMeta, sortIssues } from '../shared/helpers.js';
+import { timeAgo } from '../shared/helpers.js';
+
+const TYPE_META = {
+  assignment: { Icon: UserPlus, verb: 'assigned you' },
+  comment: { Icon: MessageSquare, verb: 'commented on' },
+  mention: { Icon: AtSign, verb: 'mentioned you in' },
+};
 
 export default function NotificationsBell() {
   const { request } = useAuth();
@@ -14,10 +20,10 @@ export default function NotificationsBell() {
 
   const load = async () => {
     try {
-      const data = await request('/me/assigned-issues');
-      setItems([...data.issues].sort(sortIssues));
+      const data = await request('/me/notifications');
+      setItems(data.notifications);
     } catch (err) {
-      console.error('Failed to load assigned cards:', err);
+      console.error('Failed to load notifications:', err);
     }
   };
 
@@ -33,9 +39,20 @@ export default function NotificationsBell() {
     return () => document.removeEventListener('mousedown', onClickAway);
   }, [open]);
 
-  const openCard = (item) => {
+  const unreadCount = items.filter((i) => !i.readAt).length;
+
+  const openItem = (item) => {
     setOpen(false);
-    navigate(`/projects/${item.projectKey}/board/${item.key}`);
+    if (!item.readAt) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, readAt: new Date().toISOString() } : i)));
+      request(`/me/notifications/${item.id}/read`, { method: 'PATCH' }).catch(() => {});
+    }
+    navigate(`/projects/${item.projectKey}/board/${item.issueKey}`);
+  };
+
+  const markAllRead = () => {
+    setItems((prev) => prev.map((i) => (i.readAt ? i : { ...i, readAt: new Date().toISOString() })));
+    request('/me/notifications/read-all', { method: 'POST' }).catch(() => {});
   };
 
   return (
@@ -43,36 +60,44 @@ export default function NotificationsBell() {
       <button
         className="icon-btn notif-bell"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Cards assigned to you"
-        title="Cards assigned to you"
+        aria-label="Notifications"
+        title="Notifications"
       >
         <Bell size={17} />
-        {items.length > 0 && <span className="notif-badge">{items.length > 9 ? '9+' : items.length}</span>}
+        {unreadCount > 0 && <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
       {open && (
         <div className="notif-panel">
-          <div className="notif-panel-head">Assigned to you</div>
+          <div className="notif-panel-head">
+            Notifications
+            {unreadCount > 0 && (
+              <button className="notif-mark-all" onClick={markAllRead}>Mark all read</button>
+            )}
+          </div>
           {items.length === 0 ? (
-            <p className="hint" style={{ padding: '4px 12px 12px' }}>Nothing assigned to you right now.</p>
+            <p className="hint" style={{ padding: '4px 12px 12px' }}>Nothing yet.</p>
           ) : (
             <ul className="notif-list">
               {items.map((i) => {
-                const p = PMAP[i.priority] || PMAP.medium;
-                const due = dueMeta(i.dueDate, false);
+                const meta = TYPE_META[i.type] || TYPE_META.comment;
+                const { Icon } = meta;
                 return (
-                  <li key={i.id} className="notif-item" onClick={() => openCard(i)}>
+                  <li
+                    key={i.id}
+                    className={`notif-item ${!i.readAt ? 'unread' : ''}`}
+                    onClick={() => openItem(i)}
+                  >
                     <span className="notif-item-top">
-                      <span className="notif-project-key">{i.projectKey}</span>
-                      <span className="prio-dot" style={{ background: p.color }} title={p.name} />
-                    </span>
-                    <span className="notif-item-title">{i.title}</span>
-                    {due && (
-                      <span className={`due due-${due.state}`}>
-                        <Calendar size={11} />
-                        {due.label}
+                      <span className="notif-item-verb">
+                        <Icon size={12} />
+                        {i.actorName ? `${i.actorName} ${meta.verb}` : meta.verb}
                       </span>
-                    )}
+                      <span className="notif-project-key">{i.projectKey}</span>
+                    </span>
+                    <span className="notif-item-title">{i.issueKey} — {i.issueTitle}</span>
+                    {i.preview && <span className="notif-item-preview">{i.preview}</span>}
+                    <span className="notif-item-time">{timeAgo(i.createdAt)}</span>
                   </li>
                 );
               })}
