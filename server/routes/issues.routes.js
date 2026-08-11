@@ -56,7 +56,6 @@ async function notifyAssignment(issue, previousAssigneeId, req) {
     actorId: req.user?.id || null,
     type: 'assignment',
     issueId: issue.id,
-    preview: issue.title,
   });
 
   try {
@@ -235,6 +234,9 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
       for (const row of rows) {
         if (!row.title || !String(row.title).trim()) {
           throw Object.assign(new Error('A row is missing a title'), { statusCode: 400 });
+        }
+        if (!row.assignorId) {
+          throw Object.assign(new Error('A row is missing an assignor'), { statusCode: 400 });
         }
 
         const rowStatus = row.statusId && statusesById[row.statusId] ? statusesById[row.statusId] : defaultStatus;

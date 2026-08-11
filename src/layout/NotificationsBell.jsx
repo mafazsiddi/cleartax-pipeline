@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, UserPlus, MessageSquare, AtSign } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { usePolling } from '../hooks/usePolling.js';
-import { timeAgo } from '../shared/helpers.js';
+import { timeAgo, avatarColor, initials } from '../shared/helpers.js';
 
 const TYPE_META = {
   assignment: { Icon: UserPlus, verb: 'assigned you' },
@@ -82,22 +82,30 @@ export default function NotificationsBell() {
               {items.map((i) => {
                 const meta = TYPE_META[i.type] || TYPE_META.comment;
                 const { Icon } = meta;
+                // Assignment previews are just the issue title, already shown
+                // right above — showing it twice reads as a bug, not info.
+                const showPreview = i.type !== 'assignment' && i.preview;
                 return (
                   <li
                     key={i.id}
                     className={`notif-item ${!i.readAt ? 'unread' : ''}`}
                     onClick={() => openItem(i)}
                   >
-                    <span className="notif-item-top">
-                      <span className="notif-item-verb">
-                        <Icon size={12} />
-                        {i.actorName ? `${i.actorName} ${meta.verb}` : meta.verb}
-                      </span>
-                      <span className="notif-project-key">{i.projectKey}</span>
+                    <span className="avatar xs notif-avatar" style={{ background: avatarColor(i.actorName) }}>
+                      {initials(i.actorName)}
                     </span>
-                    <span className="notif-item-title">{i.issueKey} — {i.issueTitle}</span>
-                    {i.preview && <span className="notif-item-preview">{i.preview}</span>}
-                    <span className="notif-item-time">{timeAgo(i.createdAt)}</span>
+                    <span className="notif-item-body">
+                      <span className="notif-item-top">
+                        <span className="notif-item-verb">
+                          <Icon size={11} className="notif-item-icon" />
+                          {i.actorName ? <><strong>{i.actorName}</strong> {meta.verb}</> : meta.verb}
+                        </span>
+                        <span className="notif-project-key">{i.projectKey}</span>
+                      </span>
+                      <span className="notif-item-title">{i.issueKey} — {i.issueTitle}</span>
+                      {showPreview && <span className="notif-item-preview">{i.preview}</span>}
+                      <span className="notif-item-time">{timeAgo(i.createdAt)}</span>
+                    </span>
                   </li>
                 );
               })}

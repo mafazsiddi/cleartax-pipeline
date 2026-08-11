@@ -106,16 +106,20 @@ export const CSS = `
   color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px;
 }
 .notif-mark-all:hover{text-decoration:underline;}
-.notif-list{list-style:none;margin:0;padding:0 6px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;}
-.notif-item{display:flex;flex-direction:column;gap:3px;padding:8px 8px;border-radius:9px;cursor:pointer;position:relative;}
+.notif-list{list-style:none;margin:0;padding:0 6px 6px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;}
+.notif-item{display:flex;align-items:flex-start;gap:9px;padding:9px 8px;border-radius:9px;cursor:pointer;position:relative;}
 .notif-item:hover{background:var(--surface-2);}
 .notif-item.unread{background:var(--accent-weak);}
 .notif-item.unread:hover{background:var(--accent-weak);filter:brightness(0.97);}
 .notif-item.unread::before{
-  content:'';position:absolute;left:-2px;top:12px;width:6px;height:6px;border-radius:50%;background:var(--accent);
+  content:'';position:absolute;left:2px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--accent);
 }
+.notif-avatar{margin-left:8px;margin-top:1px;}
+.notif-item-body{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;}
 .notif-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.notif-item-verb{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ink-2);}
+.notif-item-verb{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:var(--ink-2);}
+.notif-item-verb strong{font-weight:700;color:var(--ink);}
+.notif-item-icon{flex:none;color:var(--muted);}
 .notif-project-key{font-size:10px;font-weight:700;letter-spacing:.03em;color:var(--accent);flex:none;}
 .notif-item-title{font-size:13px;font-weight:550;color:var(--ink);line-height:1.35;}
 .notif-item-preview{font-size:11.5px;color:var(--muted);line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -263,6 +267,7 @@ export const CSS = `
 }
 .avatar.unassigned{background:#E4E7EF!important;color:#A6AEBD;box-shadow:none;}
 .avatar.sm{width:28px;height:28px;font-size:11px;}
+.avatar.xs{width:22px;height:22px;font-size:9.5px;}
 .avatar.outline{
   width:26px;height:26px;background:var(--surface)!important;color:var(--muted);
   border:1.5px dashed var(--line-2);box-shadow:none;

@@ -144,6 +144,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
         const rawStatus = mapping.statusCol != null ? (r[mapping.statusCol] || '').trim() : '';
         const rawPriority = mapping.priorityCol != null ? (r[mapping.priorityCol] || '').trim() : '';
         const rawAssignor = mapping.assignorCol != null ? (r[mapping.assignorCol] || '').trim() : '';
+        const assignorId = rawAssignor ? assignorValueMap[rawAssignor] || null : null;
         const rawAssignee = mapping.assigneeCol != null ? (r[mapping.assigneeCol] || '').trim() : '';
         const isBlank = r.every((cell) => !cell || !String(cell).trim());
         return {
@@ -155,7 +156,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
           description: mapping.descCol != null ? (r[mapping.descCol] || '').trim() : '',
           priority: rawPriority ? priorityValueMap[rawPriority] || 'medium' : 'medium',
           dueDate: mapping.dueDateCol != null ? parseDueDate(r[mapping.dueDateCol]) : null,
-          assignorId: rawAssignor ? assignorValueMap[rawAssignor] || null : null,
+          assignorId,
           assigneeId: rawAssignee ? assigneeValueMap[rawAssignee] || null : null,
           link: mapping.linkCol != null ? (r[mapping.linkCol] || '').trim() : '',
           attachmentLink: mapping.attachmentCol != null ? (r[mapping.attachmentCol] || '').trim() : '',
@@ -167,6 +168,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
 
     rows.forEach((row) => {
       if (!row.title) row.errors.push('Missing title');
+      if (!row.assignorId) row.errors.push('Missing assignor');
     });
 
     return rows;
@@ -193,7 +195,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
 
   const setSingle = (field, value) => setMapping((m) => ({ ...m, [field]: value === '' ? null : Number(value) }));
 
-  const canProceedFromMap = mapping.titleCol != null;
+  const canProceedFromMap = mapping.titleCol != null && mapping.assignorCol != null;
 
   const runImport = async () => {
     setSaving(true);
@@ -271,7 +273,7 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
                 <MapField label="Region" value={mapping.regionCol} onChange={(v) => setSingle('regionCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Priority" value={mapping.priorityCol} onChange={(v) => setSingle('priorityCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Due date" value={mapping.dueDateCol} onChange={(v) => setSingle('dueDateCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
-                <MapField label="Assignor" value={mapping.assignorCol} onChange={(v) => setSingle('assignorCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
+                <MapField label="Assignor (required)" value={mapping.assignorCol} onChange={(v) => setSingle('assignorCol', v)} columnCount={columnCount} columnLabel={columnLabel} />
                 <MapField label="Assignee" value={mapping.assigneeCol} onChange={(v) => setSingle('assigneeCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Description" value={mapping.descCol} onChange={(v) => setSingle('descCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
                 <MapField label="Link" value={mapping.linkCol} onChange={(v) => setSingle('linkCol', v)} columnCount={columnCount} columnLabel={columnLabel} optional />
@@ -320,14 +322,14 @@ export default function BulkImportModal({ statuses, members, onClose, onImport }
 
               {distinctAssignorValues.length > 0 && (
                 <div className="field">
-                  <span className="field-lbl">Map assignor values</span>
+                  <span className="field-lbl">Map assignor values (required)</span>
                   <div className="import-value-map">
                     {distinctAssignorValues.map((v) => (
                       <div key={v} className="import-value-row">
                         <span>{v}</span>
                         <div className="selwrap">
                           <select className="sel" value={assignorValueMap[v] || ''} onChange={(e) => setAssignorOverrides((m) => ({ ...m, [v]: e.target.value || null }))}>
-                            <option value="">Unspecified</option>
+                            <option value="">Choose an assignor…</option>
                             {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                           </select>
                         </div>
