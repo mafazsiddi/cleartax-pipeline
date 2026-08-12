@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { X, Trash2, Check, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ExternalLink } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr } from '../shared/helpers.js';
+import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr, timeAgo } from '../shared/helpers.js';
 import ConfirmDialog from '../shared/ConfirmDialog.jsx';
 import LabelPicker from './LabelPicker.jsx';
 import CommentThread from './CommentThread.jsx';
@@ -415,6 +415,12 @@ export default function IssueDetailPanel({
               onDelete={deleteComment}
             />
           </div>
+
+          {issue.createdAt && (
+            <p className="created-meta" title={new Date(issue.createdAt).toLocaleString()}>
+              Created {timeAgo(issue.createdAt)}
+            </p>
+          )}
         </div>
 
         {canComment && (

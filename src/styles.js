@@ -247,9 +247,8 @@ export const CSS = `
 .card-title{font-size:13.5px;font-weight:550;line-height:1.34;margin:0 0 8px;color:var(--ink);letter-spacing:-.005em;}
 .card-meta{font-size:11px;color:var(--muted);font-weight:600;margin:-4px 0 8px;}
 .card-labels{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
-.card-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .card-foot-left{display:flex;align-items:center;gap:6px;min-width:0;}
-.card-foot-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none;}
 .card-link{
   display:inline-flex;align-items:center;justify-content:center;
   width:20px;height:20px;border-radius:6px;flex:none;
@@ -262,7 +261,6 @@ export const CSS = `
 .due-soon{color:#8A5B00;background:#FFF3DB;}
 .due-today{color:#8A5B00;background:#FFEAC2;}
 .due-overdue{color:var(--p-urgent);background:#FDECED;}
-.card-created{font-size:10px;color:#AEB6C4;font-weight:600;white-space:nowrap;}
 .avatar{
   width:26px;height:26px;border-radius:50%;color:#fff;font-size:10.5px;font-weight:700;
   display:grid;place-items:center;flex:none;letter-spacing:.02em;box-shadow:inset 0 -1px 2px rgba(0,0,0,.12);
@@ -304,6 +302,7 @@ export const CSS = `
 .issue-panel-body{max-height:72vh;overflow-y:auto;}
 .issue-title-in{font-size:17px;font-weight:600;font-family:var(--font-display);}
 .save-row{display:flex;justify-content:flex-end;}
+.created-meta{color:var(--muted);font-size:11.5px;font-weight:600;text-align:center;margin:2px 0 0;}
 
 /* ---- comments ---- */
 .comment-thread{display:flex;flex-direction:column;gap:12px;}
