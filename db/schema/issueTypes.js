@@ -8,4 +8,4 @@ export const issueTypes = pgTable('issue_types', {
   icon: text('icon'),
   color: text('color'),
   hierarchyLevel: integer('hierarchy_level').notNull(), // 0=Epic, 1=Story/Task/Bug, 2=Subtask
-});
+}).enableRLS();

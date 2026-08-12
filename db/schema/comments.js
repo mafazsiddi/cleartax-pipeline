@@ -19,4 +19,4 @@ export const comments = pgTable(
   (t) => ({
     issueIdx: index('comments_issue_idx').on(t.issueId),
   })
-);
+).enableRLS();

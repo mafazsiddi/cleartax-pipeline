@@ -15,7 +15,7 @@ export const labels = pgTable(
   (t) => ({
     uniquePerProject: unique('labels_project_name_unique').on(t.projectId, t.name),
   })
-);
+).enableRLS();
 
 export const issueLabels = pgTable(
   'issue_labels',
@@ -30,4 +30,4 @@ export const issueLabels = pgTable(
   (t) => ({
     pk: primaryKey({ columns: [t.issueId, t.labelId] }),
   })
-);
+).enableRLS();

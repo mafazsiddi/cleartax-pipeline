@@ -22,4 +22,4 @@ export const notifications = pgTable(
   (t) => ({
     recipientIdx: index('notifications_recipient_idx').on(t.recipientId, t.createdAt),
   })
-);
+).enableRLS();

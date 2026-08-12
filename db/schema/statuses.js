@@ -20,4 +20,4 @@ export const statuses = pgTable(
     projectOrderIdx: index('statuses_project_order_idx').on(t.projectId, t.order),
     uniqueNamePerProject: unique('statuses_project_name_unique').on(t.projectId, t.name),
   })
-);
+).enableRLS();

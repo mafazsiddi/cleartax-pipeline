@@ -7,7 +7,7 @@ export const authOtps = pgTable('auth_otps', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   attempts: integer('attempts').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const userSessions = pgTable('user_sessions', {
   token: text('token').primaryKey(),
@@ -15,4 +15,4 @@ export const userSessions = pgTable('user_sessions', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-});
+}).enableRLS();

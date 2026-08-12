@@ -44,4 +44,4 @@ export const issues = pgTable(
     assigneeIdx: index('issues_assignee_idx').on(t.assigneeId),
     parentIdx: index('issues_parent_idx').on(t.parentId),
   })
-);
+).enableRLS();

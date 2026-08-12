@@ -261,6 +261,7 @@ export const CSS = `
 .due-soon{color:#8A5B00;background:#FFF3DB;}
 .due-today{color:#8A5B00;background:#FFEAC2;}
 .due-overdue{color:var(--p-urgent);background:#FDECED;}
+.card-created{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-weight:600;margin:-4px 0 8px;}
 .avatar{
   width:26px;height:26px;border-radius:50%;color:#fff;font-size:10.5px;font-weight:700;
   display:grid;place-items:center;flex:none;letter-spacing:.02em;box-shadow:inset 0 -1px 2px rgba(0,0,0,.12);

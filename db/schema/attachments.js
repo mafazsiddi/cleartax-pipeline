@@ -21,4 +21,4 @@ export const attachments = pgTable(
   (t) => ({
     issueIdx: index('attachments_issue_idx').on(t.issueId),
   })
-);
+).enableRLS();

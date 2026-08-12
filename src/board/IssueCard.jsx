@@ -1,6 +1,6 @@
 import React from 'react';
-import { Calendar, Link as LinkIcon, Zap, Bookmark, CheckSquare, Bug, CornerDownRight } from 'lucide-react';
-import { PMAP, avatarColor, initials, dueMeta } from '../shared/helpers.js';
+import { Calendar, Clock, Link as LinkIcon, Zap, Bookmark, CheckSquare, Bug, CornerDownRight } from 'lucide-react';
+import { PMAP, avatarColor, initials, dueMeta, timeAgo } from '../shared/helpers.js';
 
 const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, subtask: CornerDownRight };
 
@@ -33,6 +33,13 @@ export default function IssueCard({ issue, issueType, dragging, canDrag, onOpen,
       </div>
 
       <h3 className="card-title">{issue.title}</h3>
+
+      {issue.createdAt && (
+        <div className="card-created" title={`Created ${new Date(issue.createdAt).toLocaleString()}`}>
+          <Clock size={11} />
+          Created {timeAgo(issue.createdAt)}
+        </div>
+      )}
 
       {(issue.property || issue.region) && (
         <div className="card-meta">
