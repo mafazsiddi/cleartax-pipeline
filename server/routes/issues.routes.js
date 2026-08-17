@@ -326,11 +326,11 @@ issueByIdRouter.get('/:id/children', async (req, res) => {
   res.json({ issues: rows });
 });
 
-// Any member can move a card between statuses or set its attachment link —
+// Any member can move a card between statuses or set its link/attachment link —
 // everything else (title, description, priority, assignee, etc.) is locked
 // to the assignor/admin. A request only needs the ownership check when it
 // touches a field outside this allowlist.
-const ALWAYS_EDITABLE_FIELDS = new Set(['statusId', 'attachmentLink']);
+const ALWAYS_EDITABLE_FIELDS = new Set(['statusId', 'link', 'attachmentLink']);
 
 issueByIdRouter.patch('/:id', requireRole(['member', 'admin']), async (req, res) => {
   const [existing] = await db.select().from(issues).where(eq(issues.id, req.params.id)).limit(1);

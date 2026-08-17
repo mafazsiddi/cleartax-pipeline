@@ -8,7 +8,7 @@ const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, su
 
 export default function IssueCard({ issue, issueType, dragging, canDrag, onOpen, onDragStart, onDragEnd, onLinkChanged }) {
   const { user, request } = useAuth();
-  const canEditLink = user?.role === 'admin' || issue.assignorId === user?.id;
+  const canEditLink = user?.role === 'admin' || user?.role === 'member';
 
   const [editingLink, setEditingLink] = useState(false);
   const [linkDraft, setLinkDraft] = useState(issue.link || '');
