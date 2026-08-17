@@ -8,6 +8,7 @@ import ConfirmDialog from '../shared/ConfirmDialog.jsx';
 import LabelPicker from './LabelPicker.jsx';
 import CommentThread from './CommentThread.jsx';
 import AttachmentList from './AttachmentList.jsx';
+import LinkList from './LinkList.jsx';
 
 const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, subtask: CornerDownRight };
 
@@ -24,6 +25,7 @@ export default function IssueDetailPanel({
   const [issue, setIssue] = useState(null);
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
+  const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -42,7 +44,6 @@ export default function IssueDetailPanel({
   const [property, setProperty] = useState('');
   const [region, setRegion] = useState('');
   const [link, setLink] = useState('');
-  const [attachmentLink, setAttachmentLink] = useState('');
 
   const markDirty = (setter) => (val) => { setter(val); setDirty(true); };
 
@@ -52,10 +53,11 @@ export default function IssueDetailPanel({
     setDirty(false);
     (async () => {
       try {
-        const [issueData, commentsData, attachmentsData] = await Promise.all([
+        const [issueData, commentsData, attachmentsData, linksData] = await Promise.all([
           request(`/issues/${issueId}`),
           request(`/issues/${issueId}/comments`),
           request(`/issues/${issueId}/attachments`),
+          request(`/issues/${issueId}/links`),
         ]);
         if (!alive) return;
         const iss = issueData.issue;
@@ -71,9 +73,9 @@ export default function IssueDetailPanel({
         setProperty(iss.property || '');
         setRegion(iss.region || '');
         setLink(iss.link || '');
-        setAttachmentLink(iss.attachmentLink || '');
         setComments(commentsData.comments);
         setAttachments(attachmentsData.attachments);
+        setLinks(linksData.links);
       } catch (err) {
         console.error('Failed to load issue:', err);
       } finally {
@@ -125,15 +127,20 @@ export default function IssueDetailPanel({
     }
   };
 
-  const saveAttachmentLink = async () => {
+  const addIssueLink = async (url) => {
     try {
-      const { issue: updated } = await request(`/issues/${issueId}`, {
-        method: 'PATCH',
-        body: { attachmentLink: attachmentLink.trim() || null },
-      });
-      setIssue((prev) => ({ ...prev, ...updated }));
+      const { link: created } = await request(`/issues/${issueId}/links`, { method: 'POST', body: { url } });
+      setLinks((prev) => [...prev, created]);
     } catch (err) {
-      toast.error(err.message || 'Could not save the attachment link.');
+      toast.error(err.message || 'Could not add that link.');
+    }
+  };
+  const deleteIssueLink = async (id) => {
+    try {
+      await request(`/issue-links/${id}`, { method: 'DELETE' });
+      setLinks((prev) => prev.filter((l) => l.id !== id));
+    } catch (err) {
+      toast.error(err.message || 'Could not remove that link.');
     }
   };
 
@@ -374,23 +381,18 @@ export default function IssueDetailPanel({
           )}
 
           <div className="field">
+            <span className="field-lbl">Links</span>
+            <LinkList
+              links={links}
+              canEdit={canComment}
+              canDelete={canComment}
+              onAdd={addIssueLink}
+              onDelete={deleteIssueLink}
+            />
+          </div>
+
+          <div className="field">
             <span className="field-lbl">Attachments</span>
-            <div className="link-input-row" style={{ marginBottom: 8 }}>
-              <input
-                className="in"
-                type="url"
-                value={attachmentLink}
-                onChange={(e) => setAttachmentLink(e.target.value)}
-                onBlur={saveAttachmentLink}
-                disabled={!canComment}
-                placeholder="Link to an externally-hosted attachment (from import)…"
-              />
-              {attachmentLink && (
-                <a className="link-open-btn" href={attachmentLink} target="_blank" rel="noopener noreferrer" title="Open attachment link" aria-label="Open attachment link">
-                  <ExternalLink size={15} />
-                </a>
-              )}
-            </div>
             <AttachmentList
               attachments={attachments}
               canEdit={canComment}

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { eq, and, or, ilike, asc, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { issues, issueTypes, statuses, users, labels, issueLabels, projects } from '../../db/schema/index.js';
+import { issues, issueTypes, statuses, users, labels, issueLabels, issueLinks, projects } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { nextIssueKey } from '../services/issueKey.service.js';
 import { canEditIssue } from '../services/issueAccess.service.js';
@@ -203,6 +203,11 @@ projectIssuesRouter.post('/', requireRole(['member', 'admin']), async (req, res)
           attachmentLink: attachmentLink || null,
         })
         .returning();
+
+      if (attachmentLink && String(attachmentLink).trim()) {
+        await tx.insert(issueLinks).values({ issueId: row.id, url: String(attachmentLink).trim(), createdById: req.user.id });
+      }
+
       return row;
     });
 
@@ -276,6 +281,10 @@ projectIssuesRouter.post('/bulk', requireRole(['member', 'admin']), async (req, 
             attachmentLink: row.attachmentLink || null,
           })
           .returning();
+
+        if (row.attachmentLink && String(row.attachmentLink).trim()) {
+          await tx.insert(issueLinks).values({ issueId: inserted.id, url: String(row.attachmentLink).trim(), createdById: req.user.id });
+        }
 
         createdIssues.push({ issue: inserted });
       }

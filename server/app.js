@@ -11,6 +11,7 @@ import { projectIssuesRouter, issueByIdRouter } from './routes/issues.routes.js'
 import { projectLabelsRouter, labelByIdRouter } from './routes/labels.routes.js';
 import { issueCommentsRouter, commentByIdRouter } from './routes/comments.routes.js';
 import { blobTokenRouter, issueAttachmentsRouter, attachmentByIdRouter } from './routes/attachments.routes.js';
+import { issueLinksRouter, issueLinkByIdRouter } from './routes/issueLinks.routes.js';
 
 export function createApp() {
   const app = express();
@@ -37,11 +38,13 @@ export function createApp() {
 
   app.use('/api/issues/:issueId/comments', issueCommentsRouter);
   app.use('/api/issues/:issueId/attachments', issueAttachmentsRouter);
+  app.use('/api/issues/:issueId/links', issueLinksRouter);
   app.use('/api/issues', issueByIdRouter);
 
   app.use('/api/comments', commentByIdRouter);
   app.use('/api/attachments', blobTokenRouter);
   app.use('/api/attachments', attachmentByIdRouter);
+  app.use('/api/issue-links', issueLinkByIdRouter);
 
   // Scoped to /api so the local-dev entrypoint can still add static file
   // serving + SPA fallback for everything else after createApp() returns.

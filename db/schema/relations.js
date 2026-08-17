@@ -8,12 +8,14 @@ import { labels, issueLabels } from './labels.js';
 import { comments } from './comments.js';
 import { notifications } from './notifications.js';
 import { attachments } from './attachments.js';
+import { issueLinks } from './issueLinks.js';
 
 export const usersRelations = relations(users, ({ many }) => ({
   issuesAssigned: many(issues, { relationName: 'assignee' }),
   issuesReported: many(issues, { relationName: 'reporter' }),
   comments: many(comments),
   attachments: many(attachments),
+  issueLinks: many(issueLinks),
   projectsLed: many(projects),
   notificationsReceived: many(notifications, { relationName: 'recipient' }),
 }));
@@ -44,6 +46,7 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
   reporter: one(users, { fields: [issues.reporterId], references: [users.id], relationName: 'reporter' }),
   comments: many(comments),
   attachments: many(attachments),
+  issueLinks: many(issueLinks),
   issueLabels: many(issueLabels),
   notifications: many(notifications),
 }));
@@ -66,6 +69,11 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   issue: one(issues, { fields: [attachments.issueId], references: [issues.id] }),
   uploader: one(users, { fields: [attachments.uploaderId], references: [users.id] }),
+}));
+
+export const issueLinksRelations = relations(issueLinks, ({ one }) => ({
+  issue: one(issues, { fields: [issueLinks.issueId], references: [issues.id] }),
+  createdBy: one(users, { fields: [issueLinks.createdById], references: [users.id] }),
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({

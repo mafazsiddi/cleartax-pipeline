@@ -9,4 +9,5 @@ export * from './labels.js';
 export * from './comments.js';
 export * from './notifications.js';
 export * from './attachments.js';
+export * from './issueLinks.js';
 export * from './relations.js';

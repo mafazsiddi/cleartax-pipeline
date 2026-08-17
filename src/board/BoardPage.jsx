@@ -159,6 +159,10 @@ export default function BoardPage() {
   };
   const endDrag = () => { setDragOver(null); setDragId(null); };
 
+  const onCardLinkChanged = (id, link) => {
+    setIssues((prev) => prev.map((i) => (i.id === id ? { ...i, link } : i)));
+  };
+
   const openIssue = (key) => navigate(`/projects/${projectKey}/board/${key}`);
   const closeIssue = () => navigate(`/projects/${projectKey}/board`);
 
@@ -247,6 +251,7 @@ export default function BoardPage() {
                       onOpen={() => openIssue(issue.key)}
                       onDragStart={(e) => onCardDragStart(e, issue.id)}
                       onDragEnd={endDrag}
+                      onLinkChanged={onCardLinkChanged}
                     />
                   ))}
                   {cards.length === 0 && <div className="empty">{filtersActive ? 'No matches here' : 'Nothing yet'}</div>}
