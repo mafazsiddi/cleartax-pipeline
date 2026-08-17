@@ -100,7 +100,6 @@ export default function IssueDetailPanel({
           storyPoints: storyPoints === '' ? null : Number(storyPoints),
           property: property.trim() || null,
           region: region.trim() || null,
-          link: link.trim() || null,
         },
       });
       setIssue((prev) => ({ ...prev, ...updated }));
@@ -111,9 +110,9 @@ export default function IssueDetailPanel({
     }
   };
 
-  // Status and the attachment link save immediately on change — any member
-  // (not just the assignor/admin) can touch these two, unlike the rest of
-  // the form, which is gated behind canEditCard + the Save button above.
+  // Status and the link save immediately on change/blur — any member (not
+  // just the assignor/admin) can touch these, unlike the rest of the form,
+  // which is gated behind canEditCard + the Save button above.
   const changeStatus = async (newStatusId) => {
     const prevStatusId = statusId;
     setStatusId(newStatusId);
@@ -124,6 +123,19 @@ export default function IssueDetailPanel({
     } catch (err) {
       setStatusId(prevStatusId);
       toast.error(err.message || 'Could not change status.');
+    }
+  };
+
+  const saveLink = async () => {
+    const value = link.trim() || null;
+    if (value === (issue.link || null)) return;
+    try {
+      const { issue: updated } = await request(`/issues/${issueId}`, { method: 'PATCH', body: { link: value } });
+      setIssue((prev) => ({ ...prev, ...updated }));
+      onChanged?.();
+    } catch (err) {
+      setLink(issue.link || '');
+      toast.error(err.message || 'Could not save the link.');
     }
   };
 
@@ -351,7 +363,7 @@ export default function IssueDetailPanel({
             <label className="field">
               <span className="field-lbl">Link</span>
               <div className="link-input-row">
-                <input className="in" type="url" value={link} onChange={(e) => markDirty(setLink)(e.target.value)} disabled={!canEditCard} placeholder="https://…" />
+                <input className="in" type="url" value={link} onChange={(e) => setLink(e.target.value)} onBlur={saveLink} disabled={!canComment} placeholder="https://…" />
                 {link && (
                   <a className="link-open-btn" href={link} target="_blank" rel="noopener noreferrer" title="Open link" aria-label="Open link">
                     <ExternalLink size={15} />
@@ -385,7 +397,7 @@ export default function IssueDetailPanel({
             <LinkList
               links={links}
               canEdit={canComment}
-              canDelete={canComment}
+              canDelete={canDelete}
               onAdd={addIssueLink}
               onDelete={deleteIssueLink}
             />

@@ -4,8 +4,8 @@ import { db } from '../../db/client.js';
 import { issueLinks, issues } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
-// Any member (not just the assignor/admin) can add or remove links — same
-// permission model as the old single attachmentLink field it replaces.
+// Any member can add a link (same as the old single attachmentLink field),
+// but deleting one is admin-only — same as file attachments.
 export const issueLinksRouter = Router({ mergeParams: true });
 issueLinksRouter.use(requireAuth);
 
@@ -33,7 +33,7 @@ issueLinksRouter.post('/', requireRole(['member', 'admin']), async (req, res) =>
 export const issueLinkByIdRouter = Router();
 issueLinkByIdRouter.use(requireAuth);
 
-issueLinkByIdRouter.delete('/:id', requireRole(['member', 'admin']), async (req, res) => {
+issueLinkByIdRouter.delete('/:id', requireRole(['admin']), async (req, res) => {
   await db.delete(issueLinks).where(eq(issueLinks.id, req.params.id));
   res.json({ success: true });
 });
