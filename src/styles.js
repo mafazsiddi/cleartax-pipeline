@@ -255,26 +255,6 @@ export const CSS = `
   color:var(--accent);background:var(--accent-weak);transition:background .12s,color .12s;
 }
 .card-link:hover{background:var(--accent);color:#fff;}
-.card-link-edit-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:6px;flex:none;border:none;cursor:pointer;
-  color:var(--muted);background:transparent;opacity:0;transition:opacity .12s,background .12s,color .12s;
-}
-.card:hover .card-link-edit-btn,.card-link-edit-btn:focus-visible{opacity:1;}
-.card-link-edit-btn:hover{background:var(--surface-2);color:var(--ink);}
-.card-link-edit{display:inline-flex;align-items:center;gap:3px;min-width:0;}
-.card-link-in{
-  font-family:inherit;font-size:11.5px;color:var(--ink);width:120px;min-width:0;
-  border:1px solid var(--accent);background:#fff;border-radius:6px;padding:3px 6px;
-}
-.card-link-in:focus{outline:none;box-shadow:0 0 0 2px var(--accent-weak);}
-.card-link-ic-btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:19px;height:19px;border-radius:6px;flex:none;border:none;cursor:pointer;
-  color:var(--muted);background:var(--surface-2);
-}
-.card-link-ic-btn:hover{background:var(--accent);color:#fff;}
-.card-link-ic-btn:disabled{opacity:.5;cursor:not-allowed;}
 .due{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:3px 7px;border-radius:7px;}
 .due-normal{color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);}
 .due-empty{color:#AEB6C4;background:transparent;border:1px solid var(--line-2);}
