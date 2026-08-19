@@ -380,6 +380,9 @@ export const CSS = `
 .modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:13px;}
 .field{display:flex;flex-direction:column;gap:6px;}
 .field-lbl{font-size:11.5px;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.03em;}
+.field-lbl-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.field-lbl-row .field-lbl{flex:1;}
+.field-lbl-row .icon-btn{margin:-5px;}
 .in{
   font-family:inherit;font-size:13.5px;color:var(--ink);
   border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:9px 11px;width:100%;transition:all .14s;

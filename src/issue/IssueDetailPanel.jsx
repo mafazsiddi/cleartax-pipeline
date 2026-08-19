@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { X, Trash2, Check, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ExternalLink } from 'lucide-react';
+import { X, Trash2, Check, Copy, Zap, Bookmark, CheckSquare, Bug, CornerDownRight, ExternalLink } from 'lucide-react';
 import { upload } from '@vercel/blob/client';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { PRIORITIES, PRIORITY_LIMITS, activePriorityUsage, todayStr, timeAgo } from '../shared/helpers.js';
@@ -32,6 +32,7 @@ export default function IssueDetailPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [descCopied, setDescCopied] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -136,6 +137,17 @@ export default function IssueDetailPanel({
     } catch (err) {
       setLink(issue.link || '');
       toast.error(err.message || 'Could not save the link.');
+    }
+  };
+
+  const copyDescription = async () => {
+    if (!description) return;
+    try {
+      await navigator.clipboard.writeText(description);
+      setDescCopied(true);
+      setTimeout(() => setDescCopied(false), 1500);
+    } catch {
+      toast.error('Could not copy description.');
     }
   };
 
@@ -284,7 +296,19 @@ export default function IssueDetailPanel({
           )}
 
           <label className="field">
-            <span className="field-lbl">Description</span>
+            <span className="field-lbl-row">
+              <span className="field-lbl">Description</span>
+              <button
+                type="button"
+                className="icon-btn small"
+                onClick={copyDescription}
+                disabled={!description}
+                title="Copy description"
+                aria-label="Copy description"
+              >
+                {descCopied ? <Check size={13} /> : <Copy size={13} />}
+              </button>
+            </span>
             <textarea
               className="in area"
               rows={4}
