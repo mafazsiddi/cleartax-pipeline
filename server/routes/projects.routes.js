@@ -16,7 +16,7 @@ const DEFAULT_STATUSES = [
 ];
 
 router.get('/', async (req, res) => {
-  const rows = await db.select().from(projects).where(isNull(projects.archivedAt)).orderBy(projects.name);
+  const rows = await db.select().from(projects).where(isNull(projects.archivedAt)).orderBy(projects.key);
   res.json({ projects: rows });
 });
 

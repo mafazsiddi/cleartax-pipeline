@@ -30,8 +30,13 @@ export const CSS = `
 .sidebar{
   flex:0 0 220px;width:220px;height:100vh;overflow-y:auto;
   background:var(--surface);border-right:1px solid var(--line);
-  padding:16px 12px;display:flex;flex-direction:column;
+  padding:16px 12px;display:flex;flex-direction:column;position:relative;
 }
+.sidebar-resize-handle{
+  position:absolute;top:0;right:0;width:6px;height:100%;
+  cursor:col-resize;background:transparent;z-index:5;
+}
+.sidebar-resize-handle:hover,.sidebar-resize-handle.dragging{background:var(--accent-2);opacity:.35;}
 .sidebar-close{display:none;}
 .menu-toggle{
   display:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);
@@ -469,6 +474,7 @@ export const CSS = `
     transform:translateX(-100%);transition:transform .2s ease;
   }
   .sidebar.open{transform:translateX(0);}
+  .sidebar-resize-handle{display:none;}
   .sidebar-close{
     display:grid;place-items:center;align-self:flex-end;
     border:none;background:transparent;color:var(--muted);cursor:pointer;

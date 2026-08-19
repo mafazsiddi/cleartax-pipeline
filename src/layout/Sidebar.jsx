@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Plus, Users, Settings, X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 
-export default function Sidebar({ projects, loading, onCreateProject, open, onClose }) {
+export default function Sidebar({ projects, loading, onCreateProject, open, onClose, width, onResizeStart, resizing }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [creating, setCreating] = useState(false);
@@ -28,7 +28,7 @@ export default function Sidebar({ projects, loading, onCreateProject, open, onCl
   };
 
   return (
-    <nav className={`sidebar ${open ? 'open' : ''}`}>
+    <nav className={`sidebar ${open ? 'open' : ''}`} style={{ width, flexBasis: width }}>
       <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <X size={17} />
       </button>
@@ -80,6 +80,13 @@ export default function Sidebar({ projects, loading, onCreateProject, open, onCl
           </ul>
         </>
       )}
+      <div
+        className={`sidebar-resize-handle ${resizing ? 'dragging' : ''}`}
+        onMouseDown={onResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+      />
     </nav>
   );
 }
