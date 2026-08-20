@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, and, ne, isNull, desc } from 'drizzle-orm';
+import { eq, and, ne, isNull, desc, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { issues, statuses, projects, notifications, users } from '../../db/schema/index.js';
+import { issues, statuses, projects, notifications, users, labels, issueLabels } from '../../db/schema/index.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -18,14 +18,47 @@ router.get('/assigned-issues', async (req, res) => {
       priority: issues.priority,
       dueDate: issues.dueDate,
       createdAt: issues.createdAt,
+      issueTypeId: issues.issueTypeId,
+      property: issues.property,
+      region: issues.region,
+      link: issues.link,
       projectKey: projects.key,
       projectName: projects.name,
+      statusName: statuses.name,
+      statusCategory: statuses.category,
+      assignorId: issues.assignorId,
     })
     .from(issues)
     .innerJoin(statuses, eq(issues.statusId, statuses.id))
     .innerJoin(projects, eq(issues.projectId, projects.id))
     .where(and(eq(issues.assigneeId, req.user.id), ne(statuses.category, 'done')));
-  res.json({ issues: rows });
+
+  if (rows.length === 0) return res.json({ issues: [] });
+
+  const issueIds = rows.map((r) => r.id);
+  const assignorIds = [...new Set(rows.map((r) => r.assignorId).filter(Boolean))];
+
+  const [assignorRows, labelRows] = await Promise.all([
+    assignorIds.length
+      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, assignorIds))
+      : Promise.resolve([]),
+    db
+      .select({ issueId: issueLabels.issueId, id: labels.id, name: labels.name, color: labels.color })
+      .from(issueLabels)
+      .innerJoin(labels, eq(issueLabels.labelId, labels.id))
+      .where(inArray(issueLabels.issueId, issueIds)),
+  ]);
+
+  const assignorMap = Object.fromEntries(assignorRows.map((u) => [u.id, u.name]));
+  const labelsByIssue = {};
+  for (const l of labelRows) (labelsByIssue[l.issueId] ||= []).push({ id: l.id, name: l.name, color: l.color });
+
+  const enriched = rows.map((r) => ({
+    ...r,
+    assignorName: r.assignorId ? assignorMap[r.assignorId] || null : null,
+    labels: labelsByIssue[r.id] || [],
+  }));
+  res.json({ issues: enriched });
 });
 
 const NOTIFICATIONS_LIMIT = 30;

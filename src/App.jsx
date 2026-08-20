@@ -8,6 +8,7 @@ import Layout from './layout/Layout.jsx';
 import HomeRedirect from './layout/HomeRedirect.jsx';
 import NotFoundPage from './layout/NotFoundPage.jsx';
 import BoardPage from './board/BoardPage.jsx';
+import MyIssuesPage from './me/MyIssuesPage.jsx';
 import ProjectSettingsPage from './projects/ProjectSettingsPage.jsx';
 import UsersAdminPage from './admin/UsersAdminPage.jsx';
 import { CSS } from './styles.js';
@@ -34,6 +35,7 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="/my-issues" element={<MyIssuesPage />} />
         <Route path="/projects/:projectKey/board" element={<BoardPage />} />
         <Route path="/projects/:projectKey/board/:issueKey" element={<BoardPage />} />
         <Route path="/projects/:projectKey/settings" element={<ProjectSettingsPage />} />

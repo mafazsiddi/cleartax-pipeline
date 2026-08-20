@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Plus, Users, Settings, X } from 'lucide-react';
+import { Plus, Users, Settings, X, UserCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 export default function Sidebar({ projects, loading, onCreateProject, open, onClose, width, onResizeStart, resizing }) {
@@ -32,6 +32,14 @@ export default function Sidebar({ projects, loading, onCreateProject, open, onCl
       <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <X size={17} />
       </button>
+      <ul className="sidebar-list">
+        <li>
+          <NavLink to="/my-issues" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <UserCheck size={14} /> My Issues
+          </NavLink>
+        </li>
+      </ul>
+
       <div className="sidebar-section-lbl">Projects</div>
       <ul className="sidebar-list">
         {projects.map((p) => (

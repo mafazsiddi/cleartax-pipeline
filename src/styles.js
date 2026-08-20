@@ -234,6 +234,17 @@ export const CSS = `
 .col-add:hover{border-color:var(--accent);color:var(--accent);background:var(--surface);}
 .empty{font-size:12px;color:#A6AEBD;text-align:center;padding:14px 4px;font-style:italic;}
 
+/* ---- my issues ---- */
+.my-issues-title{font-family:var(--font-display);font-weight:600;font-size:16px;letter-spacing:-.01em;margin:0;}
+.my-issues-body{flex:1;overflow-y:auto;padding:18px 20px 22px;display:flex;flex-direction:column;gap:22px;}
+.my-issues-group-head{display:flex;align-items:center;gap:8px;margin-bottom:11px;}
+.my-issues-project-key{font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:.02em;color:var(--accent);background:var(--accent-weak);border-radius:6px;padding:2px 7px;}
+.my-issues-project-name{font-size:13px;font-weight:600;color:var(--ink-2);}
+.my-issues-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:11px;}
+.my-issues-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);text-align:center;padding:40px;}
+.my-issues-empty h3{font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--ink);margin:6px 0 0;}
+.my-issues-empty p{font-size:13px;margin:0;}
+
 /* ---- card ---- */
 .card{
   position:relative;background:var(--surface);border:1px solid var(--line);
