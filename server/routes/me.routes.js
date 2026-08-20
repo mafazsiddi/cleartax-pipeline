@@ -7,9 +7,13 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-// Cards assigned to the current user, across every project, that aren't
-// done yet — powers the "assigned to you" card list.
+// Cards assigned to one or more users, across every project, that aren't
+// done yet — powers the "assigned to you" card list. Defaults to just the
+// current user; pass ?userIds=a,b,c to see a chosen group's cards combined.
 router.get('/assigned-issues', async (req, res) => {
+  const requested = (req.query.userIds || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const targetUserIds = requested.length ? requested : [req.user.id];
+
   const rows = await db
     .select({
       id: issues.id,
@@ -26,21 +30,22 @@ router.get('/assigned-issues', async (req, res) => {
       projectName: projects.name,
       statusName: statuses.name,
       statusCategory: statuses.category,
+      assigneeId: issues.assigneeId,
       assignorId: issues.assignorId,
     })
     .from(issues)
     .innerJoin(statuses, eq(issues.statusId, statuses.id))
     .innerJoin(projects, eq(issues.projectId, projects.id))
-    .where(and(eq(issues.assigneeId, req.user.id), ne(statuses.category, 'done')));
+    .where(and(inArray(issues.assigneeId, targetUserIds), ne(statuses.category, 'done')));
 
   if (rows.length === 0) return res.json({ issues: [] });
 
   const issueIds = rows.map((r) => r.id);
-  const assignorIds = [...new Set(rows.map((r) => r.assignorId).filter(Boolean))];
+  const peopleIds = [...new Set(rows.flatMap((r) => [r.assigneeId, r.assignorId]).filter(Boolean))];
 
-  const [assignorRows, labelRows] = await Promise.all([
-    assignorIds.length
-      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, assignorIds))
+  const [peopleRows, labelRows] = await Promise.all([
+    peopleIds.length
+      ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, peopleIds))
       : Promise.resolve([]),
     db
       .select({ issueId: issueLabels.issueId, id: labels.id, name: labels.name, color: labels.color })
@@ -49,13 +54,14 @@ router.get('/assigned-issues', async (req, res) => {
       .where(inArray(issueLabels.issueId, issueIds)),
   ]);
 
-  const assignorMap = Object.fromEntries(assignorRows.map((u) => [u.id, u.name]));
+  const peopleMap = Object.fromEntries(peopleRows.map((u) => [u.id, u.name]));
   const labelsByIssue = {};
   for (const l of labelRows) (labelsByIssue[l.issueId] ||= []).push({ id: l.id, name: l.name, color: l.color });
 
   const enriched = rows.map((r) => ({
     ...r,
-    assignorName: r.assignorId ? assignorMap[r.assignorId] || null : null,
+    assigneeName: r.assigneeId ? peopleMap[r.assigneeId] || null : null,
+    assignorName: r.assignorId ? peopleMap[r.assignorId] || null : null,
     labels: labelsByIssue[r.id] || [],
   }));
   res.json({ issues: enriched });

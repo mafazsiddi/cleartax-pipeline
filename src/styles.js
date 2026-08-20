@@ -234,6 +234,15 @@ export const CSS = `
 .col-add:hover{border-color:var(--accent);color:var(--accent);background:var(--surface);}
 .empty{font-size:12px;color:#A6AEBD;text-align:center;padding:14px 4px;font-style:italic;}
 
+/* ---- user filter ---- */
+.user-filter{position:relative;}
+.user-filter-dropdown{position:absolute;top:calc(100% + 8px);left:0;z-index:20;width:220px;}
+.user-filter-quick{display:flex;gap:2px;padding-bottom:4px;margin-bottom:4px;border-bottom:1px solid var(--line);}
+.user-filter-quick .label-option{flex:1;justify-content:center;font-weight:600;}
+.user-filter-list{display:flex;flex-direction:column;gap:1px;max-height:260px;overflow-y:auto;}
+.user-filter-option{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.user-filter-option input{margin:0;flex:none;}
+
 /* ---- my issues ---- */
 .my-issues-title{font-family:var(--font-display);font-weight:600;font-size:16px;letter-spacing:-.01em;margin:0;}
 .my-issues-body{flex:1;overflow-y:auto;padding:18px 20px 22px;display:flex;flex-direction:column;gap:22px;}
