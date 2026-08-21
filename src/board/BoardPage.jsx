@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { Plus, Search, X, AlertTriangle, Upload } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { usePolling } from '../hooks/usePolling.js';
-import { sortIssues, todayStr } from '../shared/helpers.js';
+import { sortIssues, todayStr, addDaysStr } from '../shared/helpers.js';
 import IssueCard from './IssueCard.jsx';
 import IssueDetailPanel from '../issue/IssueDetailPanel.jsx';
 import CreateIssueModal from '../issue/CreateIssueModal.jsx';
@@ -29,6 +29,7 @@ export default function BoardPage() {
   const [query, setQuery] = useState('');
   const [fAssignee, setFAssignee] = useState('all');
   const [fPriority, setFPriority] = useState('all');
+  const [fDueDate, setFDueDate] = useState('all');
 
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -91,18 +92,32 @@ export default function BoardPage() {
     paused: () => modalOpen || !!dragId,
   });
 
-  const filtersActive = query.trim() || fAssignee !== 'all' || fPriority !== 'all';
+  const filtersActive = query.trim() || fAssignee !== 'all' || fPriority !== 'all' || fDueDate !== 'all';
   const visible = useMemo(() => {
+    const today = todayStr();
+    const weekAhead = addDaysStr(today, 7);
     return issues.filter((i) => {
       if (i.parentId) return false; // subtasks live inside their parent's panel, not on the board
       if (fAssignee === '__none' && i.assigneeId) return false;
+      if (fDueDate !== 'all') {
+        const done = i.statusCategory === 'done';
+        if (fDueDate === 'none') {
+          if (i.dueDate) return false;
+        } else if (fDueDate === 'overdue') {
+          if (done || !i.dueDate || i.dueDate >= today) return false;
+        } else if (fDueDate === 'today') {
+          if (!i.dueDate || i.dueDate !== today) return false;
+        } else if (fDueDate === 'week') {
+          if (!i.dueDate || i.dueDate < today || i.dueDate > weekAhead) return false;
+        }
+      }
       if (query.trim()) {
         const q = query.toLowerCase();
         if (!i.title.toLowerCase().includes(q) && !i.key.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [issues, fAssignee, query]);
+  }, [issues, fAssignee, fDueDate, query]);
 
   const byStatus = useMemo(() => {
     const map = Object.fromEntries(statuses.map((s) => [s.id, []]));
@@ -193,6 +208,16 @@ export default function BoardPage() {
               <option value="high">High</option>
               <option value="medium">Medium</option>
               <option value="low">Low</option>
+            </select>
+          </div>
+
+          <div className="selwrap">
+            <select className="sel" value={fDueDate} onChange={(e) => setFDueDate(e.target.value)} aria-label="Filter by due date">
+              <option value="all">Any due date</option>
+              <option value="overdue">Overdue</option>
+              <option value="today">Due today</option>
+              <option value="week">Due this week</option>
+              <option value="none">No due date</option>
             </select>
           </div>
 
