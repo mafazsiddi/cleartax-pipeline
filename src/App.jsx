@@ -35,7 +35,7 @@ function Gate() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomeRedirect />} />
-        <Route path="/my-issues" element={<MyIssuesPage />} />
+        <Route path="/my-tasks" element={<MyIssuesPage />} />
         <Route path="/projects/:projectKey/board" element={<BoardPage />} />
         <Route path="/projects/:projectKey/board/:issueKey" element={<BoardPage />} />
         <Route path="/projects/:projectKey/settings" element={<ProjectSettingsPage />} />

@@ -34,7 +34,7 @@ export default function Sidebar({ projects, loading, onCreateProject, open, onCl
       </button>
       <ul className="sidebar-list">
         <li>
-          <NavLink to="/my-issues" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/my-tasks" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
             <UserCheck size={14} /> My Tasks
           </NavLink>
         </li>
