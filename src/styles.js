@@ -159,6 +159,15 @@ export const CSS = `
   background:#FDECED;border:1px solid #F7C9CB;border-radius:8px;padding:6px 9px;
 }
 
+.due-range{display:inline-flex;align-items:center;gap:6px;}
+.due-range-sep{color:var(--muted);font-size:12px;}
+.date-input{
+  font-family:inherit;font-size:13px;color:var(--ink);cursor:pointer;
+  border:1px solid var(--line);background:var(--surface-2);
+  border-radius:9px;padding:7px 10px;transition:border-color .15s,background .15s;
+}
+.date-input:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-weak);}
+
 /* ---- buttons ---- */
 .btn{
   font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;

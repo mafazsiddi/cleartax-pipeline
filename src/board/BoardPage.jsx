@@ -30,6 +30,8 @@ export default function BoardPage() {
   const [fAssignee, setFAssignee] = useState('all');
   const [fPriority, setFPriority] = useState('all');
   const [fDueDate, setFDueDate] = useState('all');
+  const [fDueFrom, setFDueFrom] = useState('');
+  const [fDueTo, setFDueTo] = useState('');
 
   const [dragId, setDragId] = useState(null);
   const [dragOver, setDragOver] = useState(null);
@@ -109,6 +111,11 @@ export default function BoardPage() {
           if (!i.dueDate || i.dueDate !== today) return false;
         } else if (fDueDate === 'week') {
           if (!i.dueDate || i.dueDate < today || i.dueDate > weekAhead) return false;
+        } else if (fDueDate === 'custom') {
+          if (!i.dueDate) return false;
+          if (fDueFrom && i.dueDate < fDueFrom) return false;
+          if (fDueTo && i.dueDate > fDueTo) return false;
+          if (!fDueFrom && !fDueTo) return false;
         }
       }
       if (query.trim()) {
@@ -117,7 +124,7 @@ export default function BoardPage() {
       }
       return true;
     });
-  }, [issues, fAssignee, fDueDate, query]);
+  }, [issues, fAssignee, fDueDate, fDueFrom, fDueTo, query]);
 
   const byStatus = useMemo(() => {
     const map = Object.fromEntries(statuses.map((s) => [s.id, []]));
@@ -212,14 +219,45 @@ export default function BoardPage() {
           </div>
 
           <div className="selwrap">
-            <select className="sel" value={fDueDate} onChange={(e) => setFDueDate(e.target.value)} aria-label="Filter by due date">
+            <select
+              className="sel"
+              value={fDueDate}
+              onChange={(e) => {
+                setFDueDate(e.target.value);
+                if (e.target.value !== 'custom') { setFDueFrom(''); setFDueTo(''); }
+              }}
+              aria-label="Filter by due date"
+            >
               <option value="all">Any due date</option>
               <option value="overdue">Overdue</option>
               <option value="today">Due today</option>
               <option value="week">Due this week</option>
               <option value="none">No due date</option>
+              <option value="custom">Custom range…</option>
             </select>
           </div>
+
+          {fDueDate === 'custom' && (
+            <div className="due-range">
+              <input
+                type="date"
+                className="date-input"
+                value={fDueFrom}
+                max={fDueTo || undefined}
+                onChange={(e) => setFDueFrom(e.target.value)}
+                aria-label="Due date from"
+              />
+              <span className="due-range-sep">–</span>
+              <input
+                type="date"
+                className="date-input"
+                value={fDueTo}
+                min={fDueFrom || undefined}
+                onChange={(e) => setFDueTo(e.target.value)}
+                aria-label="Due date to"
+              />
+            </div>
+          )}
 
           {overdueCount > 0 && (
             <span className="overdue-pill" title="Cards past their due date">
