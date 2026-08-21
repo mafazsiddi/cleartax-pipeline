@@ -76,7 +76,7 @@ export default function MyIssuesPage() {
     <div className="board-page">
       <header className="topbar">
         <div className="tools" style={{ marginLeft: 0 }}>
-          <h2 className="my-issues-title">My Issues</h2>
+          <h2 className="my-issues-title">My Tasks</h2>
           <UserFilter
             members={members}
             selectedIds={selectedUserIds}
