@@ -106,6 +106,8 @@ export default function IssueDetailPanel({
       setIssue((prev) => ({ ...prev, ...updated }));
       setDirty(false);
       onChanged?.();
+    } catch (err) {
+      toast.error(err.message || 'Could not save changes.');
     } finally {
       setSaving(false);
     }
