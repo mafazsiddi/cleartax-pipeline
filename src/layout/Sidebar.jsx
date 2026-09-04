@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Plus, Users, Settings, X, UserCheck } from 'lucide-react';
+import { Plus, Users, Settings, X, UserCheck, Linkedin, Waves, ExternalLink } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
+
+const TOOLS = [
+  { name: 'LE Mira', url: 'https://linkedin-asset-tracker.vercel.app/', Icon: Linkedin },
+  { name: 'Wave Tracker', url: 'https://www.cleartax.email/wave-tracker', Icon: Waves },
+];
 
 export default function Sidebar({ projects, loading, onCreateProject, open, onClose, width, onResizeStart, resizing }) {
   const { user } = useAuth();
@@ -75,6 +80,18 @@ export default function Sidebar({ projects, loading, onCreateProject, open, onCl
           </button>
         )
       )}
+
+      <div className="sidebar-section-lbl" style={{ marginTop: 18 }}>Tools</div>
+      <ul className="sidebar-list">
+        {TOOLS.map(({ name, url, Icon }) => (
+          <li key={name}>
+            <a href={url} target="_blank" rel="noopener noreferrer" className="sidebar-link sidebar-link-ext">
+              <Icon size={14} /> <span className="sidebar-project-name">{name}</span>
+              <ExternalLink size={12} className="sidebar-ext-icon" />
+            </a>
+          </li>
+        ))}
+      </ul>
 
       {isAdmin && (
         <>

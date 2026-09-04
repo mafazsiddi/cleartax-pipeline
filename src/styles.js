@@ -53,6 +53,8 @@ export const CSS = `
 }
 .sidebar-link:hover{background:var(--surface-2);color:var(--ink);}
 .sidebar-link.active{background:var(--accent-weak);color:var(--accent);}
+.sidebar-link-ext .sidebar-ext-icon{margin-left:auto;flex:none;opacity:0;transition:opacity .12s;}
+.sidebar-link-ext:hover .sidebar-ext-icon{opacity:.5;}
 .sidebar-project-key{font-size:10px;font-weight:700;letter-spacing:.02em;color:var(--muted);background:var(--line-2);border-radius:5px;padding:2px 5px;flex:none;}
 .sidebar-link.active .sidebar-project-key{color:var(--accent);background:#fff;}
 .sidebar-project-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
