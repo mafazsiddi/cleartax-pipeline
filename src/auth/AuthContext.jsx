@@ -44,11 +44,22 @@ export function AuthProvider({ children }) {
 
   // Wraps apiFetch with the current token and drops the session on 401.
   const request = useCallback(
-    (path, opts = {}) =>
-      apiFetch(path, { ...opts, token: session?.token }).catch((err) => {
+    (path, opts = {}) => {
+      const token = session?.token;
+      // Once the session is gone, in-flight effects and polling ticks can still
+      // fire a render or two before their components unmount. Sending those
+      // without a token just earns a 401 and re-enters the branch below, so
+      // fail them here instead of round-tripping to the server.
+      if (!token) {
+        const err = new Error('Not authenticated');
+        err.status = 401;
+        return Promise.reject(err);
+      }
+      return apiFetch(path, { ...opts, token }).catch((err) => {
         if (err.status === 401) dropSession();
         throw err;
-      }),
+      });
+    },
     [session, dropSession]
   );
 

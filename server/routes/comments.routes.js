@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { asyncRouter as Router } from '../lib/asyncRouter.js';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { comments, users, issues, projects } from '../../db/schema/index.js';

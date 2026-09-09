@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { asyncRouter as Router } from '../lib/asyncRouter.js';
 import crypto from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';

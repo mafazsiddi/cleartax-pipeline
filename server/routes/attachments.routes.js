@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { asyncRouter as Router } from '../lib/asyncRouter.js';
 import { Readable } from 'node:stream';
 import { eq } from 'drizzle-orm';
 import { handleUpload } from '@vercel/blob/client';

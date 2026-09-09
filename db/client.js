@@ -26,12 +26,27 @@ function stripSslMode(url) {
 
 const connectionString = isLocal ? rawConnectionString : stripSslMode(rawConnectionString);
 
+// Each Vercel lambda instance gets its own pool, so `max` is a per-instance
+// figure — under load the real connection count is (instances × max) and a
+// generous value here is what exhausts Postgres. Keep it just high enough for
+// the handlers that fan out with Promise.all.
+const isServerless = !!process.env.VERCEL;
+const maxConnections = Number(process.env.DB_POOL_MAX) || (isServerless ? 3 : 10);
+
 export const pool = new pg.Pool({
   connectionString,
   ssl: isLocal ? false : { rejectUnauthorized: false },
-  max: 5,
+  max: maxConnections,
   idleTimeoutMillis: 10000,
   connectionTimeoutMillis: 5000,
+});
+
+// A pool with no 'error' listener rethrows when an *idle* client dies — which
+// Supabase's pooler does routinely — and that takes down the whole process
+// (locally) or the in-flight invocation (on Vercel). Swallowing it here lets
+// pg discard the dead client and hand out a fresh one on the next query.
+pool.on('error', (err) => {
+  console.error('[db] Idle client error (connection discarded):', err.message);
 });
 
 export const db = drizzle(pool, { schema });

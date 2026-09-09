@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { asyncRouter as Router } from '../lib/asyncRouter.js';
 import { db } from '../../db/client.js';
 import { issueTypes } from '../../db/schema/index.js';
 import { requireAuth } from '../middleware/auth.js';
