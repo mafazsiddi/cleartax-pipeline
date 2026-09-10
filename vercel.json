@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/webtesting", "destination": "https://webtesting-gamma.vercel.app/webtesting" },
+    { "source": "/webtesting/", "destination": "https://webtesting-gamma.vercel.app/webtesting" },
     { "source": "/webtesting/:path*", "destination": "https://webtesting-gamma.vercel.app/webtesting/:path*" },
     { "source": "/(.*)", "destination": "/" }
   ]
