@@ -43,7 +43,6 @@ export default function IssueDetailPanel({
   const [dueDate, setDueDate] = useState('');
   const [storyPoints, setStoryPoints] = useState('');
   const [property, setProperty] = useState('');
-  const [region, setRegion] = useState('');
   const [link, setLink] = useState('');
 
   const markDirty = (setter) => (val) => { setter(val); setDirty(true); };
@@ -72,7 +71,6 @@ export default function IssueDetailPanel({
         setDueDate(iss.dueDate || '');
         setStoryPoints(iss.storyPoints ?? '');
         setProperty(iss.property || '');
-        setRegion(iss.region || '');
         setLink(iss.link || '');
         setComments(commentsData.comments);
         setAttachments(attachmentsData.attachments);
@@ -100,7 +98,6 @@ export default function IssueDetailPanel({
           dueDate: dueDate || null,
           storyPoints: storyPoints === '' ? null : Number(storyPoints),
           property: property.trim() || null,
-          region: region.trim() || null,
         },
       });
       setIssue((prev) => ({ ...prev, ...updated }));
@@ -246,6 +243,26 @@ export default function IssueDetailPanel({
     a.remove();
     URL.revokeObjectURL(url);
   };
+  const previewAttachment = async (attachment) => {
+    const res = await fetch(`/api/attachments/${attachment.id}/download`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Could not open attachment');
+    }
+    const blobData = await res.blob();
+    const url = URL.createObjectURL(blobData);
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked once the new tab has had a chance to load the object URL.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
   const deleteAttachment = async (id) => {
     await request(`/attachments/${id}`, { method: 'DELETE' });
     setAttachments((prev) => prev.filter((a) => a.id !== id));
@@ -387,28 +404,21 @@ export default function IssueDetailPanel({
               <input className="in" type="date" min={todayStr()} value={dueDate} onChange={(e) => markDirty(setDueDate)(e.target.value)} disabled={!canEditCard} />
             </label>
             <label className="field">
-              <span className="field-lbl">Link</span>
-              <div className="link-input-row">
-                <input className="in" type="url" value={link} onChange={(e) => setLink(e.target.value)} onBlur={saveLink} disabled={!canComment} placeholder="https://…" />
-                {link && (
-                  <a className="link-open-btn" href={link} target="_blank" rel="noopener noreferrer" title="Open link" aria-label="Open link">
-                    <ExternalLink size={15} />
-                  </a>
-                )}
-              </div>
-            </label>
-          </div>
-
-          <div className="row2">
-            <label className="field">
               <span className="field-lbl">Property</span>
               <input className="in" value={property} onChange={(e) => markDirty(setProperty)(e.target.value)} disabled={!canEditCard} placeholder="e.g. Website, Landing Page" />
             </label>
-            <label className="field">
-              <span className="field-lbl">Region</span>
-              <input className="in" value={region} onChange={(e) => markDirty(setRegion)(e.target.value)} disabled={!canEditCard} placeholder="e.g. Global, Norway" />
-            </label>
           </div>
+          <label className="field">
+            <span className="field-lbl">Link</span>
+            <div className="link-input-row">
+              <input className="in" type="url" value={link} onChange={(e) => setLink(e.target.value)} onBlur={saveLink} disabled={!canComment} placeholder="https://…" />
+              {link && (
+                <a className="link-open-btn" href={link} target="_blank" rel="noopener noreferrer" title="Open link" aria-label="Open link">
+                  <ExternalLink size={15} />
+                </a>
+              )}
+            </div>
+          </label>
 
           {canEditCard && (
             <div className="save-row">
@@ -439,6 +449,7 @@ export default function IssueDetailPanel({
               uploadError={uploadError}
               onUpload={uploadFile}
               onDownload={downloadAttachment}
+              onPreview={previewAttachment}
               onDelete={deleteAttachment}
             />
           </div>

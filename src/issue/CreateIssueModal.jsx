@@ -103,19 +103,14 @@ export default function CreateIssueModal({ statuses, members, issues, defaultSta
             You have {priorityUsage.urgent}/{PRIORITY_LIMITS.urgent} urgent and {priorityUsage.high}/{PRIORITY_LIMITS.high} high cards active in this project.
           </p>
 
-          <label className="field">
-            <span className="field-lbl">Due date</span>
-            <input className="in" type="date" min={todayStr()} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </label>
-
           <div className="row2">
+            <label className="field">
+              <span className="field-lbl">Due date</span>
+              <input className="in" type="date" min={todayStr()} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            </label>
             <label className="field">
               <span className="field-lbl">Property</span>
               <input className="in" value={property} onChange={(e) => setProperty(e.target.value)} placeholder="e.g. Website, Landing Page" />
-            </label>
-            <label className="field">
-              <span className="field-lbl">Region</span>
-              <input className="in" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="e.g. Global, Norway" />
             </label>
           </div>
 

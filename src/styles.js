@@ -278,6 +278,8 @@ export const CSS = `
 .card.is-dragging{opacity:.4;transform:rotate(1.5deg);}
 .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;}
 .issue-type{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.02em;}
+.card-top-right{display:inline-flex;align-items:center;gap:8px;flex:none;}
+.comment-badge{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-weak);border-radius:999px;padding:2px 6px;}
 .prio{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
 .prio-dot{width:6px;height:6px;border-radius:50%;}
 .card-title{font-size:13.5px;font-weight:550;line-height:1.34;margin:0 0 8px;color:var(--ink);letter-spacing:-.005em;}
@@ -380,6 +382,8 @@ export const CSS = `
 .attachment-ic{color:var(--muted);flex:none;}
 .attachment-info{flex:1;min-width:0;display:flex;flex-direction:column;}
 .attachment-name{font-size:12.5px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.attachment-name-btn{background:none;border:none;padding:0;text-align:left;color:var(--ink);cursor:pointer;}
+.attachment-name-btn:hover{color:var(--accent);text-decoration:underline;}
 .attachment-meta{font-size:11px;color:var(--muted);}
 .attachment-drop{
   display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;

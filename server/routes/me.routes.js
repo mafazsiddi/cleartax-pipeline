@@ -43,7 +43,7 @@ router.get('/assigned-issues', async (req, res) => {
   const issueIds = rows.map((r) => r.id);
   const peopleIds = [...new Set(rows.flatMap((r) => [r.assigneeId, r.assignorId]).filter(Boolean))];
 
-  const [peopleRows, labelRows] = await Promise.all([
+  const [peopleRows, labelRows, unreadCommentRows] = await Promise.all([
     peopleIds.length
       ? db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, peopleIds))
       : Promise.resolve([]),
@@ -52,17 +52,35 @@ router.get('/assigned-issues', async (req, res) => {
       .from(issueLabels)
       .innerJoin(labels, eq(issueLabels.labelId, labels.id))
       .where(inArray(issueLabels.issueId, issueIds)),
+    // Unread "someone commented" notifications for the viewer, scoped to
+    // these cards — powers the comment badge on My Tasks. Only reflects the
+    // viewer's own notifications, so filtering by a teammate won't show
+    // comment badges on their cards (those notifications went to them, not you).
+    db
+      .select({ issueId: notifications.issueId })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientId, req.user.id),
+          eq(notifications.type, 'comment'),
+          isNull(notifications.readAt),
+          inArray(notifications.issueId, issueIds)
+        )
+      ),
   ]);
 
   const peopleMap = Object.fromEntries(peopleRows.map((u) => [u.id, u.name]));
   const labelsByIssue = {};
   for (const l of labelRows) (labelsByIssue[l.issueId] ||= []).push({ id: l.id, name: l.name, color: l.color });
+  const unreadCommentsByIssue = {};
+  for (const n of unreadCommentRows) unreadCommentsByIssue[n.issueId] = (unreadCommentsByIssue[n.issueId] || 0) + 1;
 
   const enriched = rows.map((r) => ({
     ...r,
     assigneeName: r.assigneeId ? peopleMap[r.assigneeId] || null : null,
     assignorName: r.assignorId ? peopleMap[r.assignorId] || null : null,
     labels: labelsByIssue[r.id] || [],
+    unreadComments: unreadCommentsByIssue[r.id] || 0,
   }));
   res.json({ issues: enriched });
 });

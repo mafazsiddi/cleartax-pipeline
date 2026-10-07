@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Paperclip, Download, Trash2, Upload } from 'lucide-react';
 import { formatBytes } from '../shared/helpers.js';
 
-export default function AttachmentList({ attachments, canEdit, canDelete, uploading, uploadError, onUpload, onDownload, onDelete }) {
+export default function AttachmentList({ attachments, canEdit, canDelete, uploading, uploadError, onUpload, onDownload, onPreview, onDelete }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -24,11 +24,19 @@ export default function AttachmentList({ attachments, canEdit, canDelete, upload
     <div className="attachment-list">
       {attachments.length === 0 && !canEdit && <p className="hint">No attachments.</p>}
 
-      {attachments.map((a) => (
+      {attachments.map((a) => {
+        const isImage = a.mimeType?.startsWith('image/');
+        return (
         <div key={a.id} className="attachment-row">
           <Paperclip size={14} className="attachment-ic" />
           <div className="attachment-info">
-            <span className="attachment-name">{a.fileName}</span>
+            {isImage ? (
+              <button type="button" className="attachment-name attachment-name-btn" onClick={() => onPreview(a)}>
+                {a.fileName}
+              </button>
+            ) : (
+              <span className="attachment-name">{a.fileName}</span>
+            )}
             <span className="attachment-meta">{formatBytes(a.fileSize)}</span>
           </div>
           <button
@@ -46,7 +54,8 @@ export default function AttachmentList({ attachments, canEdit, canDelete, upload
             </button>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {canEdit && (
         <div

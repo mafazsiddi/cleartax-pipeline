@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Link as LinkIcon, Zap, Bookmark, CheckSquare, Bug, CornerDownRight } from 'lucide-react';
+import { Calendar, Link as LinkIcon, MessageSquare, Zap, Bookmark, CheckSquare, Bug, CornerDownRight } from 'lucide-react';
 import { PMAP, avatarColor, initials, dueMeta } from '../shared/helpers.js';
 
 const TYPE_ICONS = { epic: Zap, story: Bookmark, task: CheckSquare, bug: Bug, subtask: CornerDownRight };
@@ -26,18 +26,24 @@ export default function IssueCard({ issue, issueType, dragging, canDrag, onOpen,
           <TypeIcon size={13} />
           {issue.key}
         </span>
-        <span className="prio" style={{ color: p.color }}>
-          <span className="prio-dot" style={{ background: p.color }} />
-          {p.name}
+        <span className="card-top-right">
+          {issue.unreadComments > 0 && (
+            <span className="comment-badge" title={`${issue.unreadComments} new comment${issue.unreadComments === 1 ? '' : 's'}`}>
+              <MessageSquare size={11} />
+              {issue.unreadComments}
+            </span>
+          )}
+          <span className="prio" style={{ color: p.color }}>
+            <span className="prio-dot" style={{ background: p.color }} />
+            {p.name}
+          </span>
         </span>
       </div>
 
       <h3 className="card-title">{issue.title}</h3>
 
-      {(issue.property || issue.region) && (
-        <div className="card-meta">
-          {[issue.property, issue.region].filter(Boolean).join(' · ')}
-        </div>
+      {issue.property && (
+        <div className="card-meta">{issue.property}</div>
       )}
 
       {issue.labels?.length > 0 && (
