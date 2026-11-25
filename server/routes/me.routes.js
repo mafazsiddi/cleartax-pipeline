@@ -11,9 +11,10 @@ router.use(requireAuth);
 // done yet — powers the "assigned to you" card list. Defaults to just the
 // current user; pass ?userIds=a,b,c to see a chosen group's cards combined.
 // When the viewer is one of the target users, also pulls in cards they
-// aren't assigned to but have an unread comment/mention on — e.g. a card
-// you filed and asked someone to QA, where they just replied to you. Those
-// only ever reflect the viewer's own notifications, never a teammate's.
+// aren't assigned to but have received a comment/mention notification for —
+// e.g. a card you filed and asked someone to QA, where they replied to you.
+// They stay listed after the notification is read, until done. Those only
+// ever reflect the viewer's own notifications, never a teammate's.
 router.get('/assigned-issues', async (req, res) => {
   const requested = (req.query.userIds || '').split(',').map((s) => s.trim()).filter(Boolean);
   const targetUserIds = requested.length ? requested : [req.user.id];
@@ -54,8 +55,7 @@ router.get('/assigned-issues', async (req, res) => {
       .where(
         and(
           eq(notifications.recipientId, req.user.id),
-          inArray(notifications.type, ['comment', 'mention']),
-          isNull(notifications.readAt)
+          inArray(notifications.type, ['comment', 'mention'])
         )
       );
     const alreadyIncluded = new Set(assignedRows.map((r) => r.id));
