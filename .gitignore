@@ -7,3 +7,6 @@ dist
 
 .vercel
 .env*
+
+# Mira MCP sign-in token
+mcp/.session.json

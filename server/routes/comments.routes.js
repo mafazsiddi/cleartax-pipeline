@@ -1,5 +1,5 @@
 import { asyncRouter as Router } from '../lib/asyncRouter.js';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { comments, users, issues, projects } from '../../db/schema/index.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -22,9 +22,9 @@ function preview(body) {
 }
 
 /**
- * Notifies everyone a new comment concerns: the card's assignee (in-app
- * only) and anyone freshly @mentioned (in-app + email). Never throws — the
- * comment is already saved by the time this runs.
+ * Notifies all active users of a new comment (in-app only), and emails anyone
+ * freshly @mentioned. Never throws — the comment is already saved by the time
+ * this runs.
  */
 async function notifyComment(commentBody, issue, author, req) {
   try {
@@ -40,17 +40,18 @@ async function notifyComment(commentBody, issue, author, req) {
       preview: commentPreview,
     });
 
-    // The assignee hears about every comment on their card, unless they were
-    // already just notified as a mention above.
-    if (issue.assigneeId && !mentionedIds.includes(issue.assigneeId)) {
-      await createNotifications({
-        recipientIds: [issue.assigneeId],
-        actorId: author.id,
-        type: 'comment',
-        issueId: issue.id,
-        preview: commentPreview,
-      });
-    }
+    // Every active user hears about every comment, unless they were already
+    // just notified as a mention above. This is what puts the card on their
+    // My Tasks even when it isn't theirs (see /me/assigned-issues).
+    const activeUsers = await db.select({ id: users.id }).from(users).where(isNull(users.deactivatedAt));
+
+    await createNotifications({
+      recipientIds: activeUsers.map((u) => u.id).filter((id) => !mentionedIds.includes(id)),
+      actorId: author.id,
+      type: 'comment',
+      issueId: issue.id,
+      preview: commentPreview,
+    });
 
     if (!mailEnabled() || mentionedIds.length === 0) return;
     const mentionedUsers = await db
@@ -113,7 +114,6 @@ issueCommentsRouter.post('/', requireRole(['member', 'admin']), async (req, res)
       id: issues.id,
       key: issues.key,
       title: issues.title,
-      assigneeId: issues.assigneeId,
       projectKey: projects.key,
     })
     .from(issues)
